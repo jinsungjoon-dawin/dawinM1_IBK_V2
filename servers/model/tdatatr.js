@@ -1,11 +1,11 @@
-import mondb from '../db/dbconn.js' ;
+import mondb from '../db/dbconn.js';
 
 const tdatatr = {
     /**
      * 모니터링 종합 적재 Data 검증 결과(최종)
      * BarChart
      */
-    tdatatr_find : async () => {
+    tdatatr_find: async () => {
         let rows = await mondb.query(`	select sum(b.tblAsis)       as tblasis
                                              , sum(b.tblTobe)       as tbltobe
                                              , sum(b.idxAsis)       as idxasis
@@ -22,14 +22,14 @@ const tdatatr = {
                                             ) A
                                         join tdatatr B
                                             on a.did = b.did
-                                    `) ;
-        return(rows) ;
+                                    `);
+        return (rows);
     },
     /**
      * 모니터링 종합 적재 Data 검증 결과(최종)
      * BarChart
      */
-    tdatatr_verify : async () => {
+    tdatatr_verify: async () => {
         let rows = await mondb.query(`	select sum(b.tblTobe)                   as tbltobe
 	                                         , sum(b.tblAsis)-sum(b.tblTobe)    as tblasistobesum
                                         from (select did    as did
@@ -40,18 +40,18 @@ const tdatatr = {
 	                                         ) A
                                         join tdatatr B
 	                                        on a.did = b.did
-                                    `) ;
-        return(rows) ;
-    },    
+                                    `);
+        return (rows);
+    },
     /**
      * 데이타이관 적제 Data 검증 우측 상단
      * 구분, DB계정명
      * , ASIS Table수량, TOBE Table수량, ASIS Index수량, TOBE Index수량
      * , ASIS Object수량, TOBE Object수량, ASIS Invalid Object수량, TOBE Invalid Object수량
      */
-    tdatachklist : async (args) => {
+    tdatachklist: async (args) => {
         // console.log("args.query.did : " + args.query.did);      
-  
+
         let rows = await mondb.query(` select a.pkey			as pkey			-- pkey
                                             , a.did			    as did			-- 데이터이관ID
                                             , b.seq			    as seq			-- 차수
@@ -74,9 +74,9 @@ const tdatatr = {
                                         join tdatacode b
                                             on a.did = b.did
                                         where a.did = ?
-                                      `, [args.query.did] ) ;
-          return(rows) ;
-        },    
+                                      `, [args.query.did]);
+        return (rows);
+    },
 }
- 
-export default tdatatr ;
+
+export default tdatatr;
