@@ -13,10 +13,37 @@ router.post('/perf_upload', async function (req, res, next) {
         // console.log("Received data:", data);
 
         if (!data.APID || !data.SID || !data.TID) {
-            return res.status(400).json({ success: false, message: "Missing required keys (APID, SID, TID)" });
+            return res.status(400).json({ success: false, message: "필수 항목이 누락되었습니다 (APID, SID, TID)" });
         }
 
         const result = await tperpormManagement.upsertPerformanceData(data);
+        res.json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+/**
+ * 성능 테스트 데이터 삭제
+ * DELETE /perf_del
+ */
+router.delete('/perf_del', async (req, res) => {
+    try {
+        const data = req.body; // Expecting array of objects with PKEY
+        // console.log("Delete request data:", data);
+
+        if (!Array.isArray(data) || data.length === 0) {
+            return res.status(400).json({ success: false, message: "Invalid data format. Expected non-empty array." });
+        }
+
+        const pkeys = data.map(item => item.PKEY).filter(pkey => pkey); // Extract PKEYs
+
+        if (pkeys.length === 0) {
+            return res.status(400).json({ success: false, message: "No valid PKEYs provided." });
+        }
+
+        const result = await tperpormManagement.deletePerformanceData(pkeys);
         res.json(result);
     } catch (err) {
         console.error(err);

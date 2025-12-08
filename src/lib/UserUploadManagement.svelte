@@ -6,7 +6,7 @@
     let selectedRow = 0;
     let fileInput; // 파일 input 요소 참조
     let gubun;
-    let searchtxt="";
+    let searchtxt = "";
     let currentPage = 1;
     let itemsPerPage = 10;
     // let list = [
@@ -42,19 +42,37 @@
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
             const headers = jsonData[0];
-            const rows = jsonData.slice(1).map(row => {
+            const rows = jsonData.slice(1).map((row) => {
                 let obj = {};
                 headers.forEach((key, i) => {
                     obj[key] = row[i] || "";
                 });
                 const merged = {};
-                const cols = {checked : true, pkey: 0, usrid: "id", host:"Host",usrdesc: $t.user.usrdesc,  admin: false, apps:"", regdt:"", flag:"new",password:""};
+                const cols = {
+                    checked: true,
+                    pkey: 0,
+                    usrid: "id",
+                    host: "Host",
+                    usrdesc: $t.user.usrdesc,
+                    admin: false,
+                    apps: "",
+                    regdt: "",
+                    flag: "new",
+                    password: "",
+                };
                 // 모든 키 가져오기
-                const keys = new Set([...Object.keys(obj), ...Object.keys(cols)]);
+                const keys = new Set([
+                    ...Object.keys(obj),
+                    ...Object.keys(cols),
+                ]);
                 // 각 키별로 병합
-                keys.forEach(key => {
+                keys.forEach((key) => {
                     merged[key] = obj[key] || cols[key];
-                    if(key == "admin") merged[key] = ((merged[key] == "0" || merged[key] == 0 ) ? false : true); 
+                    if (key == "admin")
+                        merged[key] =
+                            merged[key] == "0" || merged[key] == 0
+                                ? false
+                                : true;
                 });
                 return merged;
             });
@@ -64,80 +82,138 @@
             rows.forEach((item) => {
                 list = [item, ...list];
             });
-        
         };
-         reader.readAsArrayBuffer(file);
+        reader.readAsArrayBuffer(file);
     }
 
+    // 엑셀 다운로드
+    function downloadExcel() {
+        if (list.length === 0) {
+            alert("다운로드할 데이터가 없습니다.");
+            return;
+        }
+
+        const headerMap = {
+            사용자ID: "usrid",
+            Host: "host",
+            설명: "usrdesc",
+            관리자: "admin",
+            "Access Apps": "apps",
+            등록일: "regdt",
+        };
+        const headers = Object.keys(headerMap);
+
+        const excelData = list.map((item) => {
+            const row = {};
+            headers.forEach((header) => {
+                const key = headerMap[header];
+                if (key === "admin") {
+                    row[header] = item[key] ? "Y" : "N";
+                } else {
+                    row[header] = item[key];
+                }
+            });
+            return row;
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        // 컬럼 너비 자동 조정 (선택 사항)
+        const wscols = headers.map(() => ({ wch: 15 }));
+        worksheet["!cols"] = wscols;
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "UserList");
+        XLSX.writeFile(workbook, "User_List.xlsx");
+    }
 
     const handleRowClick = (idx) => {
         selectedRow = idx; // 현재 클릭된 row의 seq를 기준으로 선택 상태 설정
         currentPage = 1;
     };
-    $: paginatedlist =  list.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-    
+    $: paginatedlist = list.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage,
+    );
+
     $: totalPages = Math.ceil(list.length / itemsPerPage);
 
     let selectAll = false;
 
     // 전체 선택 토글 함수
     function toggleAll() {
-        list = list.map(item => ({ ...item, checked: selectAll }));
+        list = list.map((item) => ({ ...item, checked: selectAll }));
     }
 
     // 개별 체크박스 변경 감지
     function updateSelection() {
-        selectAll = list.every(item => item.checked);
+        selectAll = list.every((item) => item.checked);
     }
     function goToPage(page) {
         if (page > 0 && page <= totalPages) {
             currentPage = page;
         }
     }
-    
+
     //사용자 추가
     function addUser() {
-        list = [{checked : true, pkey: 0, usrid: "id", host:"Host",usrdesc: $t.user.usrdesc,  admin: false, apps:"", regdt: "", flag:"new",password:""}, ...list]; // 새로운 배열로 업데이트 (반응성 유지)
+        list = [
+            {
+                checked: true,
+                pkey: 0,
+                usrid: "id",
+                host: "Host",
+                usrdesc: $t.user.usrdesc,
+                admin: false,
+                apps: "",
+                regdt: "",
+                flag: "new",
+                password: "",
+            },
+            ...list,
+        ]; // 새로운 배열로 업데이트 (반응성 유지)
     }
-   
-    
-    function checkData(){
+
+    function checkData() {
         const saveList = list.filter((item, idx) => item.checked);
-        if(saveList.length == 0){
+        if (saveList.length == 0) {
             alert($t.user.checkData);
             return false;
         }
         return true;
     }
-    
+
     //사용자 조회
     async function searchUser() {
-        let serviceUrl = $rooturl + "/useruploadmanagement/user_list?gubun=" + gubun + "&searchtxt=" + searchtxt;
+        let serviceUrl =
+            $rooturl +
+            "/useruploadmanagement/user_list?gubun=" +
+            gubun +
+            "&searchtxt=" +
+            searchtxt;
         const res = await fetch(serviceUrl);
-        if (res.ok){
-        list = await res.json();
-        }else
-        throw new Error(res.statusText);
+        if (res.ok) {
+            list = await res.json();
+        } else throw new Error(res.statusText);
     }
-    
+
     //사용자 삭제
-    function deleteUser(){
-        if(!checkData())return;
-        if(!confirm($t.user.deleteConfirm))return;
+    function deleteUser() {
+        if (!checkData()) return;
+        if (!confirm($t.user.deleteConfirm)) return;
         const saveList = list.filter((item, idx) => item.checked);
         let serviceUrl = $rooturl + "/useruploadmanagement/user_del";
         fetch(serviceUrl, {
             // method: "DELETE" ,
-            method: "DELETE" ,
+            method: "DELETE",
             headers: {
                 "Content-Type": "application/json",
             },
             // body:  JSON.stringify({saveList}),
-                body:  JSON.stringify(saveList)
-            })
+            body: JSON.stringify(saveList),
+        })
             .then(async (res) => {
                 let rmsg = await res.json();
-                if (res.status == 200 && rmsg.rdata===1) {
+                if (res.status == 200 && rmsg.rdata === 1) {
                     alert($t.user.deleteSuccess);
                     searchUser();
                 }
@@ -147,23 +223,23 @@
             });
     }
     //사용자 저장
-    function saveUser(){
-        if(!checkData())return;
-        if(!confirm($t.user.saveConfirm))return;
-        if(!validationCheck())return;
+    function saveUser() {
+        if (!checkData()) return;
+        if (!confirm($t.user.saveConfirm)) return;
+        if (!validationCheck()) return;
         const saveList = list.filter((item, idx) => item.checked);
         let serviceUrl = $rooturl + "/useruploadmanagement/user_save";
         fetch(serviceUrl, {
-            method: "POST" ,
+            method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
             // body:  JSON.stringify({saveList}),
-                body:  JSON.stringify(saveList)
-            })
+            body: JSON.stringify(saveList),
+        })
             .then(async (res) => {
                 let rmsg = await res.json();
-                if (res.status == 200 && rmsg.rdata===1) {
+                if (res.status == 200 && rmsg.rdata === 1) {
                     alert($t.user.saveSuccess);
                     searchUser();
                 }
@@ -173,22 +249,29 @@
             });
     }
     let errors = {}; // 에러 상태 저장
-    function validationCheck(){
+    function validationCheck() {
         errors = {};
         for (var i = 0; i < rlist.length; i++) {
-            if(list[i].checked === true){
-                if(list[i].usrid === ""){
-                    errors[i] = { ...errors[i], usrid: $t.user.usrId + $t.user.check }; 
+            if (list[i].checked === true) {
+                if (list[i].usrid === "") {
+                    errors[i] = {
+                        ...errors[i],
+                        usrid: $t.user.usrId + $t.user.check,
+                    };
                     alert($t.user.usrId + $t.user.check);
                     return false;
-                }
-                else if(list[i].host === ""){
-                    errors[i] = { ...errors[i], host: $t.user.host + $t.user.check };  
+                } else if (list[i].host === "") {
+                    errors[i] = {
+                        ...errors[i],
+                        host: $t.user.host + $t.user.check,
+                    };
                     alert($t.user.host + $t.user.check);
                     return false;
-                }
-                else if(list[i].usrdesc === ""){
-                    errors[i] = { ...errors[i], usrdesc: $t.user.usrdesc + $t.user.check }; 
+                } else if (list[i].usrdesc === "") {
+                    errors[i] = {
+                        ...errors[i],
+                        usrdesc: $t.user.usrdesc + $t.user.check,
+                    };
                     alert($t.user.usrdesc + $t.user.check);
                     return false;
                 }
@@ -196,109 +279,222 @@
         }
         return true;
     }
-    
 
-    
     $: rlist = list;
-    $:{
+    $: {
         console.log(JSON.stringify(rlist));
     }
     onMount(async () => {
         searchUser();
     });
 </script>
+
+<div class="mx-auto p-3 w-10/12 h-5/6">
+    <div class="flex justify-between">
+        <div class="flex-col bg-gray-700 rounded-lg w-full">
+            <div class="flex w-full border-b-2 border-gray-500 items-center">
+                <h1 class="text-2xl w-3/5 tracking-tight text-yellow-100 p-3">
+                    {$t.user.pageNm}
+                </h1>
+            </div>
+
+            <div class="w-full overflow-auto bg-gray-700 p-3 rounded-lg">
+                <div class="w-full">
+                    <div
+                        class="w-full overflow-auto bg-gray-200 p-3 mb-3 rounded-lg"
+                    >
+                        <div class="flex justify-center">
+                            <select
+                                on:change={(currentPage = 1)}
+                                bind:value={gubun}
+                                class="w-2/12 bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 pl-4 border border-gray-400 rounded-l shadow"
+                            >
+                                {#each $t.user.selectData as item}
+                                    <option value={item.key}
+                                        >{item.value}</option
+                                    >
+                                {/each}
+                            </select>
+                            <input
+                                type="text"
+                                bind:value={searchtxt}
+                                class="w-4/12 pl-3 bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 pl-4 border-y border-gray-400 shadow"
+                            />
+                            <button
+                                class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mr-2 py-2 px-4 border border-gray-400 rounded-r shadow"
+                                on:click={() => searchUser()}
+                                >{$t.com.btn.search}</button
+                            >
+                            <button
+                                class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow"
+                                on:click={() => addUser()}
+                                >{$t.com.btn.userAdd}</button
+                            >
+                            <button
+                                class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow"
+                                on:click={() => deleteUser()}
+                                >{$t.com.btn.delete}</button
+                            >
+                            <button
+                                class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow"
+                                on:click={() => saveUser()}
+                                >{$t.com.btn.save}</button
+                            >
+                            <!-- 숨겨진 파일 업로드 input -->
+                            <input
+                                type="file"
+                                bind:this={fileInput}
+                                accept=".xlsx, .xls"
+                                on:change={handleFileUpload}
+                                style="display: none;"
+                            />
+                            <!-- 파일 업로드 버튼 -->
+                            <button
+                                class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow"
+                                on:click={triggerFileUpload}
+                                >{$t.com.btn.excelUpload}</button
+                            >
+                            <button
+                                class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow"
+                                on:click={downloadExcel}>엑셀다운로드</button
+                            >
+                        </div>
+                    </div>
+                </div>
+                <table
+                    class="w-full text-md text-nowrap bg-gray-800 text-white shadow-md rounded mb-4"
+                >
+                    <thead>
+                        <tr>
+                            {#each $t.user.tableHeader as item}
+                                <th
+                                    class="text-center p-3 px-10 border border-zinc-700 bg-zinc-600"
+                                >
+                                    {#if item === " "}
+                                        <input
+                                            type="checkbox"
+                                            class="border-gray-300 rounded h-4 w-4"
+                                            bind:checked={selectAll}
+                                            on:change={toggleAll}
+                                        />
+                                    {:else}
+                                        {item}
+                                    {/if}
+                                </th>
+                            {/each}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#if paginatedlist.length > 0}
+                            {#each paginatedlist as item, idx}
+                                <tr
+                                    class="border-b hover:bg-gray-700 focus:bg-gray-700 {selectedRow ===
+                                    idx
+                                        ? 'bg-gray-700'
+                                        : ''}"
+                                    on:click={() => (selectedRow = idx)}
+                                >
+                                    <td
+                                        class="text-center p-3 px-5 border border-zinc-600"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            class="border-gray-300 rounded h-4 w-4"
+                                            bind:checked={item.checked}
+                                        />
+                                    </td>
+                                    {#if item.flag === "new"}
+                                        <td
+                                            class="p-3 px-5 border border-zinc-600"
+                                            bind:textContent={item.usrid}
+                                            contenteditable="true"
+                                            class:error={errors[idx]?.usrid}
+                                        />
+                                    {:else}
+                                        <td
+                                            class="p-3 px-5 border border-zinc-600"
+                                            bind:textContent={item.usrid}
+                                            contenteditable="false"
+                                        />
+                                    {/if}
+                                    <td
+                                        class="p-3 px-5 border border-zinc-600"
+                                        bind:textContent={item.host}
+                                        contenteditable="true"
+                                        class:error={errors[idx]?.host}
+                                    />
+                                    <!-- <td class="p-3 px-5 border border-zinc-600"  bind:textContent={item.host} contenteditable="true"  class:error={errors[idx]?.host}  /> -->
+                                    <td
+                                        class="p-3 px-5 border border-zinc-600"
+                                        bind:textContent={item.usrdesc}
+                                        contenteditable="true"
+                                        class:error={errors[idx]?.usrdesc}
+                                    />
+                                    <td
+                                        class="p-3 px-5 border border-zinc-600 text-center"
+                                        ><input
+                                            type="checkbox"
+                                            bind:checked={item.admin}
+                                            class="border-gray-300 rounded h-4 w-4"
+                                        /></td
+                                    >
+                                    <td
+                                        class="p-3 px-5 border border-zinc-600 text-center"
+                                        bind:textContent={item.apps}
+                                        contenteditable="true"
+                                    />
+                                    <td
+                                        class="p-3 px-5 border border-zinc-600 text-center"
+                                        bind:textContent={item.regdt}
+                                        contenteditable="false"
+                                    />
+                                </tr>
+                            {/each}
+                        {:else}
+                            <tr>
+                                <td
+                                    colspan="7"
+                                    class="p-3 px-5 p-3 px-5 text-center text-yellow-100"
+                                    >{$t.com.paging.noData}</td
+                                >
+                            </tr>
+                        {/if}
+                    </tbody>
+                </table>
+                <!-- <p>선택된 항목: {list.filter(item => item.checked).map(item => item.usrdesc).join(", ")}</p> -->
+            </div>
+            <div class="flex w-full justify-center mb-4">
+                <button
+                    class="px-3 py-1 bg-gray-500 text-yellow-100 rounded mx-1 hover:bg-gray-700"
+                    on:click={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                >
+                    {$t.com.paging.previous}
+                </button>
+                {#each Array(totalPages).fill() as _, pageIndex}
+                    <button
+                        class="px-3 py-1 bg-gray-300 text-black rounded mx-1 hover:bg-gray-500"
+                        class:bg-gray-700={pageIndex + 1 === currentPage}
+                        on:click={() => goToPage(pageIndex + 1)}
+                    >
+                        {pageIndex + 1}
+                    </button>
+                {/each}
+                <button
+                    class="px-3 py-1 bg-gray-500 text-yellow-100 rounded mx-1 hover:bg-gray-700"
+                    on:click={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                >
+                    {$t.com.paging.next}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     .error {
         /* border: 3px solid #ff2056; */
         background-color: #ff205675;
     }
 </style>
-<div class="mx-auto p-3 w-10/12 h-5/6">
-    <div class="flex justify-between">
-        <div class="flex-col bg-gray-700 rounded-lg w-full" >
-          <div class="flex w-full  border-b-2 border-gray-500 items-center">
-              <h1 class="text-2xl w-3/5 tracking-tight text-yellow-100 p-3"> {$t.user.pageNm}</h1>
-          </div>
-          
-          <div class="w-full overflow-auto bg-gray-700 p-3 rounded-lg">
-            <div class="w-full">
-                <div class="w-full overflow-auto bg-gray-200 p-3 mb-3 rounded-lg">
-                    <div class="flex justify-center ">
-                        <select on:change={currentPage = 1} bind:value={gubun}  class="w-2/12 bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 pl-4 border border-gray-400 rounded-l shadow">
-                            {#each $t.user.selectData as item}
-                            <option value={item.key}>{item.value}</option>
-                            {/each}
-                        </select>
-                        <input type="text" bind:value={searchtxt} class="w-4/12 pl-3 bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 pl-4 border-y border-gray-400  shadow" >
-                        <button class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mr-2 py-2 px-4 border border-gray-400 rounded-r shadow"  on:click={() => searchUser()}>{$t.com.btn.search}</button>
-                        <button class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow"  on:click={()=> addUser()}>{$t.com.btn.userAdd}</button>
-                        <button class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow"  on:click={()=> deleteUser()}>{$t.com.btn.delete}</button>
-                        <button class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow"  on:click={() => saveUser()}>{$t.com.btn.save}</button>
-                        <!-- 숨겨진 파일 업로드 input -->
-                        <input type="file" bind:this={fileInput} accept=".xlsx, .xls" on:change={handleFileUpload} style="display: none;" />
-                        <!-- 파일 업로드 버튼 -->
-                        <button class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow"  on:click={triggerFileUpload}>{$t.com.btn.excelUpload}</button>
-                    </div>
-                    
-                </div>    
-            </div>
-          <table class="w-full text-md text-nowrap bg-gray-800 text-white  shadow-md rounded mb-4">
-          <thead>
-            <tr>
-                {#each $t.user.tableHeader as item}
-                    <th class="text-center p-3 px-10 border border-zinc-700 bg-zinc-600">
-                    {#if item === " "}
-                        <input type="checkbox" class="border-gray-300 rounded h-4 w-4" bind:checked={selectAll} on:change={toggleAll} />
-                    {:else}
-                        {item}
-                    {/if}
-                    </th>
-                {/each}
-            </tr>
-            
-          </thead>
-          <tbody>
-            {#if paginatedlist.length > 0}
-            {#each paginatedlist as item, idx}
-                  <tr class="border-b hover:bg-gray-700 focus:bg-gray-700 {selectedRow === idx ? 'bg-gray-700' : ''}" on:click={() => (selectedRow = idx)}>
-                    <td class="text-center p-3 px-5 border border-zinc-600">
-                        <input type="checkbox" class="border-gray-300 rounded h-4 w-4" bind:checked={item.checked}/>
-                    </td>
-                    {#if item.flag === "new"}
-                        <td class="p-3 px-5 border border-zinc-600" bind:textContent={item.usrid} contenteditable="true"  class:error={errors[idx]?.usrid} />
-                    {:else}
-                        <td class="p-3 px-5 border border-zinc-600" bind:textContent={item.usrid} contenteditable="false"  />
-                    {/if}
-                    <td class="p-3 px-5  border border-zinc-600" bind:textContent={item.host} contenteditable="true"  class:error={errors[idx]?.host} />
-                    <!-- <td class="p-3 px-5 border border-zinc-600"  bind:textContent={item.host} contenteditable="true"  class:error={errors[idx]?.host}  /> -->
-                    <td class="p-3 px-5  border border-zinc-600" bind:textContent={item.usrdesc} contenteditable="true" class:error={errors[idx]?.usrdesc}/>
-                    <td class="p-3 px-5  border border-zinc-600 text-center"><input type="checkbox" bind:checked={item.admin} class="border-gray-300 rounded h-4 w-4"/></td>
-                    <td class="p-3 px-5  border border-zinc-600 text-center"  bind:textContent={item.apps} contenteditable="true"/>
-                    <td class="p-3 px-5  border border-zinc-600 text-center" bind:textContent={item.regdt} contenteditable="false"/>
-                </tr>
-            {/each}
-        {:else}
-            <tr>
-                <td colspan="7" class="p-3 px-5 p-3 px-5 text-center text-yellow-100">{$t.com.paging.noData}</td>
-            </tr>
-        {/if}
-          </tbody>
-        </table>
-        <!-- <p>선택된 항목: {list.filter(item => item.checked).map(item => item.usrdesc).join(", ")}</p> -->
-      </div>
-      <div class="flex w-full justify-center mb-4">
-        <button class="px-3 py-1 bg-gray-500 text-yellow-100 rounded mx-1 hover:bg-gray-700" on:click={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>
-          {$t.com.paging.previous}
-        </button>
-        {#each Array(totalPages).fill() as _, pageIndex}
-            <button class="px-3 py-1 bg-gray-300 text-black rounded mx-1 hover:bg-gray-500" class:bg-gray-700={pageIndex + 1 === currentPage} on:click={() => goToPage(pageIndex + 1)}>
-                {pageIndex + 1}
-            </button>
-        {/each}
-        <button class="px-3 py-1 bg-gray-500 text-yellow-100 rounded mx-1 hover:bg-gray-700" on:click={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}>
-          {$t.com.paging.next}
-        </button>
-      </div>
-    </div>
-  </div>
-  </div>

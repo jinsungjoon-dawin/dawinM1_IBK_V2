@@ -11,87 +11,100 @@ const tperpormManagement = {
             conn = await mondb.getConnection();
             await conn.beginTransaction();
 
-            // 1. tapid (업무) - APID 기준 Upsert
-            const sqlTapid = `
-                INSERT INTO tapid (APID, APNM)
-                VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE
-                    APNM = VALUES(APNM)
-            `;
-            await conn.query(sqlTapid, [data.APID, data.APNM]);
+            // 1. tapid (업무) - APID 기준 Select -> Insert (No Update)
+            const [tapidRows] = await conn.query('SELECT APID FROM tapid WHERE APID = ?', [data.APID]);
+            if (tapidRows.length === 0) {
+                // Insert Only
+                const sqlTapidInsert = 'INSERT INTO tapid (APID, APNM) VALUES (?, ?)';
+                await conn.query(sqlTapidInsert, [data.APID, data.APNM]);
+            }
 
-            // 2. tsid (서비스) - SID 기준 Upsert (Auto Increment지만 ID 지정)
-            const sqlTsid = `
-                INSERT INTO tsid (SID, APID, SVCNM, \`DESC\`)
-                VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    APID = VALUES(APID),
-                    SVCNM = VALUES(SVCNM),
-                    \`DESC\` = VALUES(\`DESC\`)
-            `;
-            await conn.query(sqlTsid, [data.SID, data.APID, data.SVCNM, data.DESC]);
+            // 2. tsid (서비스) - SID 기준 Select -> Insert (No Update)
+            const [tsidRows] = await conn.query('SELECT SID FROM tsid WHERE SID = ?', [data.SID]);
+            if (tsidRows.length === 0) {
+                // Insert Only
+                const sqlTsidInsert = 'INSERT INTO tsid (SID, APID, SVCNM, `DESC`) VALUES (?, ?, ?, ?)';
+                await conn.query(sqlTsidInsert, [data.SID, data.APID, data.SVCNM, data.DESC]);
+            }
 
-            // 3. tperfcode (테스트 차수) - TID 기준 Upsert
-            const sqlTperfcode = `
-                INSERT INTO tperfcode (TID, SEQ, TNAME, gb, startDt, lastDt, asisDt)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    SEQ = VALUES(SEQ),
-                    TNAME = VALUES(TNAME),
-                    gb = VALUES(gb),
-                    startDt = VALUES(startDt),
-                    lastDt = VALUES(lastDt),
-                    asisDt = VALUES(asisDt)
-            `;
-            // 날짜 필드가 null이면 현재 날짜나 기본값 처리 필요할 수 있음. 예시 데이터에 따라 조정.
-            // 예시 데이터: "TSTIME": "2025-12-05..." 등은 tperftest용이고, tperfcode용 날짜는 예시에 명시되지 않았으나
-            // 테이블 정의상 NOT NULL DEFAULT curdate()이므로, 값이 없으면 제외하거나 기본값 전달 필요.
-            // 여기서는 입력 데이터에 해당 필드가 있다고 가정하거나, 없으면 현재 날짜를 사용하도록 처리.
+            // 3. tperfcode (테스트 차수) - TID 기준 Select -> Insert (No Update)
             const curDate = new Date();
-            await conn.query(sqlTperfcode, [
-                data.TID,
-                data.SEQ,
-                data.TNAME,
-                data.gb,
-                data.startDt || curDate, // 입력 없으면 오늘
-                data.lastDt || curDate,
-                data.asisDt || curDate
-            ]);
+            const startDt = data.startDt || curDate;
+            const lastDt = data.lastDt || curDate;
+            const asisDt = data.asisDt || curDate;
 
-            // 4. tperftest (성능 결과) - TID + SID 기준 Upsert
-            // 주의: tperftest 테이블에 (TID, SID) 복합 유니크 인덱스가 있어야 정상 작동함.
-            // ALTER TABLE tperftest ADD UNIQUE KEY uk_tid_sid (TID, SID);
-            const sqlTperftest = `
-                INSERT INTO tperftest (
-                    TID, SID, TSTIME, STIME, ETIME, SFLAG, SVCTIME,
-                    STIME_ASIS, ETIME_ASIS, SVCTIME_ASIS, REGDT
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE
-                    TSTIME = VALUES(TSTIME),
-                    STIME = VALUES(STIME),
-                    ETIME = VALUES(ETIME),
-                    SFLAG = VALUES(SFLAG),
-                    SVCTIME = VALUES(SVCTIME),
-                    STIME_ASIS = VALUES(STIME_ASIS),
-                    ETIME_ASIS = VALUES(ETIME_ASIS),
-                    SVCTIME_ASIS = VALUES(SVCTIME_ASIS),
-                    REGDT = NOW()
-            `;
-            await conn.query(sqlTperftest, [
-                data.TID,
-                data.SID,
-                data.TSTIME,
-                data.STIME,
-                data.ETIME,
-                data.SFLAG,
-                data.SVCTIME,
-                data.STIME_ASIS,
-                data.ETIME_ASIS,
-                data.SVCTIME_ASIS
-            ]);
+            const [tperfcodeRows] = await conn.query('SELECT TID FROM tperfcode WHERE TID = ?', [data.TID]);
+            if (tperfcodeRows.length === 0) {
+                // Insert Only
+                const sqlTperfcodeInsert = `
+                    INSERT INTO tperfcode (TID, SEQ, TNAME, gb, startDt, lastDt, asisDt)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                `;
+                await conn.query(sqlTperfcodeInsert, [
+                    data.TID,
+                    data.SEQ,
+                    data.TNAME,
+                    data.gb,
+                    startDt,
+                    lastDt,
+                    asisDt
+                ]);
+            }
+
+            // 4. tperftest (성능 결과) - PKEY 기준 Select -> Insert/Update
+            // PKEY로 조회 -> 0보다 크면 Update, 아니면 Insert
+            // 주의: data.PKEY가 없으면 Insert로 처리됨 (AUTO_INCREMENT 등으로 가정하지 않고 사용자 요청대로 PKEY 포함 Insert)
+
+            // PKEY가 값이 있을 때만 조회 시도 (빈 값이면 신규로 간주)
+            if (data.PKEY) {
+                const sqlTperftestUpdate = `
+                    UPDATE tperftest SET 
+                        TSTIME = ?,
+                        STIME = ?,
+                        ETIME = ?,
+                        SFLAG = ?,
+                        SVCTIME = ?,
+                        STIME_ASIS = ?,
+                        ETIME_ASIS = ?,
+                        SVCTIME_ASIS = ?,
+                        REGDT = NOW()
+                    WHERE PKEY = ?
+                `;
+                await conn.query(sqlTperftestUpdate, [
+                    data.TSTIME || null,
+                    data.STIME || null,
+                    data.ETIME || null,
+                    data.SFLAG || 0,
+                    data.SVCTIME || 0,
+                    data.STIME_ASIS || null,
+                    data.ETIME_ASIS || null,
+                    data.SVCTIME_ASIS || 0,
+                    data.PKEY
+                ]);
+            } else {
+                // Insert
+                const sqlTperftestInsert = `
+                    INSERT INTO tperftest (
+                         TID, SID, TSTIME, STIME, ETIME, SFLAG, SVCTIME,
+                        STIME_ASIS, ETIME_ASIS, SVCTIME_ASIS, REGDT
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                `;
+                await conn.query(sqlTperftestInsert, [
+                    data.TID,
+                    data.SID,
+                    data.TSTIME || null,
+                    data.STIME || null,
+                    data.ETIME || null,
+                    data.SFLAG || 0,
+                    data.SVCTIME || 0,
+                    data.STIME_ASIS || null,
+                    data.ETIME_ASIS || null,
+                    data.SVCTIME_ASIS || 0
+                ]);
+            }
 
             await conn.commit();
-            return { success: true, message: "Data upserted successfully" };
+            return { success: true, message: "데이터가 성공적으로 저장되었습니다" };
 
         } catch (err) {
             if (conn) await conn.rollback();
@@ -126,19 +139,26 @@ const tperpormManagement = {
             }
 
             const sql = `
-                SELECT
-                    ta.APID, ta.APNM,
-                    ts.SVCNM, ts.\`DESC\`,
-                    tp.TID, tc.SEQ, tc.TNAME, tc.gb,
-                    ts.SID,
-                    DATE_FORMAT(tp.TSTIME, '%Y-%m-%d %H:%i:%s') as TSTIME,
-                    DATE_FORMAT(tp.STIME, '%Y-%m-%d %H:%i:%s') as STIME,
-                    DATE_FORMAT(tp.ETIME, '%Y-%m-%d %H:%i:%s') as ETIME,
-                    tp.SFLAG, tp.SVCTIME,
-                    DATE_FORMAT(tp.STIME_ASIS, '%Y-%m-%d %H:%i:%s') as STIME_ASIS,
-                    DATE_FORMAT(tp.ETIME_ASIS, '%Y-%m-%d %H:%i:%s') as ETIME_ASIS,
-                    tp.SVCTIME_ASIS,
-                    'old' as flag
+                select
+                tc.TID, 
+                tc.SEQ, 
+                tc.TNAME, 
+                tc.gb,
+                ta.APID, 
+                ta.APNM,
+                ts.SID,
+                ts.SVCNM, 
+                ts.\`DESC\`,
+                DATE_FORMAT(tp.TSTIME, '%Y-%m-%d %H:%i:%s') as TSTIME,
+                DATE_FORMAT(tp.STIME, '%Y-%m-%d %H:%i:%s') as STIME,
+                DATE_FORMAT(tp.ETIME, '%Y-%m-%d %H:%i:%s') as ETIME,
+                tp.SFLAG, 
+                tp.SVCTIME,
+                DATE_FORMAT(tp.STIME_ASIS, '%Y-%m-%d %H:%i:%s') as STIME_ASIS,
+                DATE_FORMAT(tp.ETIME_ASIS, '%Y-%m-%d %H:%i:%s') as ETIME_ASIS,
+                tp.SVCTIME_ASIS,
+                tp.PKEY,
+                'old' as flag
                 FROM tperftest tp
                 JOIN tsid ts ON tp.SID = ts.SID
                 JOIN tapid ta ON ts.APID = ta.APID
@@ -146,10 +166,8 @@ const tperpormManagement = {
                 WHERE tc.gb = '3'
                 ${whereClause}
                 order by ta.apid, tp.tid, ts.svcnm
-            `;
-            console.log(sql);
+                `;
             const rows = await conn.query(sql, params);
-            console.log(rows[0]);
             // Format dates
             // return rows.map(row => ({
             //     ...row,
@@ -161,6 +179,30 @@ const tperpormManagement = {
             // }));
             return rows;
         } catch (err) {
+            throw err;
+        } finally {
+            if (conn) conn.release();
+        }
+    },
+    /**
+     * 성능 테스트 데이터 삭제
+     * tperftest 테이블에서만 삭제
+     */
+    deletePerformanceData: async (pkeys) => {
+        let conn;
+        try {
+            conn = await mondb.getConnection();
+            if (!pkeys || pkeys.length === 0) {
+                return { success: true, message: "삭제할 데이터가 없습니다" };
+            }
+            // PKEY 리스트를 사용하여 삭제
+            // pkeys는 숫자 배열이어야 함
+            const sql = `DELETE FROM tperftest WHERE PKEY IN (?)`;
+            const result = await conn.query(sql, [pkeys]);
+
+            return { success: true, message: "성공적으로 삭제되었습니다", rdata: 1 };
+        } catch (err) {
+            console.error("Delete Error:", err);
             throw err;
         } finally {
             if (conn) conn.release();

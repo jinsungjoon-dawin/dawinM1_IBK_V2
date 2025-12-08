@@ -16,17 +16,17 @@
         fileInput.click(); // 버튼 클릭 시 input 클릭 이벤트 발생
     }
 
-    function downloadTemplate() {
+    function downloadExcel() {
         const headers = [
+            "TID",
+            "SEQ",
+            "TNAME",
+            "gb",
             "APID",
             "APNM",
             "SID",
             "SVCNM",
             "DESC",
-            "TID",
-            "SEQ",
-            "TNAME",
-            "gb",
             "TSTIME",
             "STIME",
             "ETIME",
@@ -37,10 +37,30 @@
             "SVCTIME_ASIS",
         ];
 
-        const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+        const data = list.map((item) => ({
+            TID: item.TID,
+            SEQ: item.SEQ,
+            TNAME: item.TNAME,
+            gb: item.gb,
+            APID: item.APID,
+            APNM: item.APNM,
+            SID: item.SID,
+            SVCNM: item.SVCNM,
+            DESC: item.DESC,
+            TSTIME: item.TSTIME,
+            STIME: item.STIME,
+            ETIME: item.ETIME,
+            SFLAG: item.SFLAG,
+            SVCTIME: item.SVCTIME,
+            STIME_ASIS: item.STIME_ASIS,
+            ETIME_ASIS: item.ETIME_ASIS,
+            SVCTIME_ASIS: item.SVCTIME_ASIS,
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(data, { header: headers });
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
-        XLSX.writeFile(workbook, "performance_upload_template.xlsx");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+        XLSX.writeFile(workbook, "performance_data.xlsx");
     }
 
     function handleFileUpload(event) {
@@ -87,6 +107,7 @@
                     STIME_ASIS: "",
                     ETIME_ASIS: "",
                     SVCTIME_ASIS: 0,
+                    PKEY: "",
                 };
 
                 return { ...defaults, ...obj };
@@ -110,6 +131,7 @@
         currentPage * itemsPerPage,
     );
     $: totalPages = Math.ceil(list.length / itemsPerPage);
+    $: console.log("list changed:", list);
 
     let maxPageButtons = 10;
     $: startPage =
@@ -158,6 +180,7 @@
             STIME_ASIS: "",
             ETIME_ASIS: "",
             SVCTIME_ASIS: 0,
+            PEKY: "",
         };
         list = [newRow, ...list];
     }
@@ -168,6 +191,77 @@
             alert("선택된 데이터가 없습니다.");
             return false;
         }
+
+        // 필수 입력 필드
+        const mandatoryFields = [
+            "TID",
+            "SEQ",
+            "TNAME",
+            "gb",
+            "APID",
+            "APNM",
+            "SID",
+            "SVCNM",
+            "DESC",
+        ];
+        // 날짜 형식 필드 (YYYY-MM-DD HH:mm:ss)
+        const dateFields = [
+            "TSTIME",
+            "STIME",
+            "ETIME",
+            "STIME_ASIS",
+            "ETIME_ASIS",
+        ];
+        // 숫자 형식 필드
+        const numberFields = ["SFLAG", "SVCTIME", "SVCTIME_ASIS"];
+
+        // 날짜 형식 정규식 (YYYY-MM-DD HH:mm:ss)
+        const dateRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+
+        for (let i = 0; i < saveList.length; i++) {
+            const item = saveList[i];
+            const rowNum = i + 1; // 1-based index for alert
+
+            // 1. 필수 필드 체크
+            for (const field of mandatoryFields) {
+                if (!item[field] || item[field].toString().trim() === "") {
+                    alert(
+                        `[${rowNum}번째 행] ${field} 은(는) 필수 입력 항목입니다.`,
+                    );
+                    return false;
+                }
+            }
+
+            // 2. 날짜 형식 체크 (값이 있는 경우에만)
+            for (const field of dateFields) {
+                if (item[field] && item[field].toString().trim() !== "") {
+                    if (!dateRegex.test(item[field])) {
+                        alert(
+                            `[${rowNum}번째 행] ${field} 의 형식이 올바르지 않습니다.\n(Format: YYYY-MM-DD HH:mm:ss)`,
+                        );
+                        return false;
+                    }
+                }
+            }
+
+            // 3. 숫자 형식 체크
+            for (const field of numberFields) {
+                // 값이 없으면 0으로 간주하거나, 필수 체크가 아니므로 넘어갈 수 있음.
+                // 여기서는 값이 있다면 숫자인지 체크. (빈 문자열이면 0으로 변환 가능한지 혹은 에러인지)
+                // 보통 빈값은 허용하거나 0으로 처리됨. 명시적으로 숫자가 아닌 값을 체크.
+                if (
+                    item[field] !== "" &&
+                    item[field] !== null &&
+                    isNaN(Number(item[field]))
+                ) {
+                    alert(
+                        `[${rowNum}번째 행] ${field} 은(는) 숫자여야 합니다.`,
+                    );
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
 
@@ -200,30 +294,51 @@
     }
 
     // 삭제
+    // 삭제
     function deletePerf() {
-        if (!checkData()) return;
+        const saveList = list.filter((item) => item.checked);
+        if (saveList.length === 0) {
+            alert("선택된 데이터가 없습니다.");
+            return;
+        }
+
         if (!confirm("선택한 데이터를 삭제하시겠습니까?")) return;
 
-        const saveList = list.filter((item, idx) => item.checked);
-        let serviceUrl = $rooturl + "/performManagement/perf_del";
+        // 1. "new" 상태인 항목은 리스트에서 바로 제거
+        const newItems = saveList.filter((item) => item.flag === "new");
+        if (newItems.length > 0) {
+            list = list.filter((item) => !item.checked || item.flag !== "new");
+        }
 
-        fetch(serviceUrl, {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(saveList),
-        })
-            .then(async (res) => {
-                let rmsg = await res.json();
-                if (res.status == 200 && rmsg.rdata === 1) {
-                    alert("삭제되었습니다.");
-                    searchPerf();
-                } else {
-                    alert("삭제 실패: " + rmsg.message);
-                }
+        // 2. "old" 상태인 항목은 서버에 삭제 요청
+        const oldItems = saveList.filter((item) => item.flag === "old");
+        if (oldItems.length > 0) {
+            let serviceUrl = $rooturl + "/performManagement/perf_del";
+
+            fetch(serviceUrl, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(oldItems),
             })
-            .catch((err) => {
-                alert("error:" + err.message);
-            });
+                .then(async (res) => {
+                    let rmsg = await res.json();
+                    if (res.status == 200 && rmsg.rdata === 1) {
+                        alert("삭제되었습니다.");
+                        // 삭제 성공 시 리스트에서 제거 (또는 재조회)
+                        // 여기서는 리스트에서 제거하는 방식으로 처리
+                        list = list.filter((item) => !oldItems.includes(item));
+                        // 혹은 searchPerf(); 로 재조회 가능
+                    } else {
+                        alert("삭제 실패: " + rmsg.message);
+                    }
+                })
+                .catch((err) => {
+                    alert("error:" + err.message);
+                });
+        } else if (newItems.length > 0) {
+            // newItems만 있었던 경우
+            alert("삭제되었습니다.");
+        }
     }
 
     // 저장
@@ -327,8 +442,7 @@
                             <!-- 양식 다운로드 버튼 -->
                             <button
                                 class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow"
-                                on:click={downloadTemplate}
-                                >양식 다운로드</button
+                                on:click={downloadExcel}>엑셀 다운로드</button
                             >
                             <button
                                 class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow"
@@ -356,6 +470,22 @@
                                 </th>
                                 <th
                                     class="text-center p-3 px-2 border border-zinc-700 bg-zinc-600"
+                                    >TID</th
+                                >
+                                <th
+                                    class="text-center p-3 px-2 border border-zinc-700 bg-zinc-600"
+                                    >차수</th
+                                >
+                                <th
+                                    class="text-center p-3 px-2 border border-zinc-700 bg-zinc-600"
+                                    >테스트명</th
+                                >
+                                <th
+                                    class="text-center p-3 px-2 border border-zinc-700 bg-zinc-600"
+                                    >구분</th
+                                >
+                                <th
+                                    class="text-center p-3 px-2 border border-zinc-700 bg-zinc-600"
                                     >APID</th
                                 >
                                 <th
@@ -373,22 +503,6 @@
                                 <th
                                     class="text-center p-3 px-2 border border-zinc-700 bg-zinc-600"
                                     >설명</th
-                                >
-                                <th
-                                    class="text-center p-3 px-2 border border-zinc-700 bg-zinc-600"
-                                    >TID</th
-                                >
-                                <th
-                                    class="text-center p-3 px-2 border border-zinc-700 bg-zinc-600"
-                                    >차수</th
-                                >
-                                <th
-                                    class="text-center p-3 px-2 border border-zinc-700 bg-zinc-600"
-                                    >테스트명</th
-                                >
-                                <th
-                                    class="text-center p-3 px-2 border border-zinc-700 bg-zinc-600"
-                                    >구분</th
                                 >
                                 <th
                                     class="text-center p-3 px-2 border border-zinc-700 bg-zinc-600"
@@ -447,6 +561,26 @@
                                             <td
                                                 class="p-3 px-2 border border-zinc-600"
                                                 contenteditable="true"
+                                                bind:textContent={item.TID}
+                                            ></td>
+                                            <td
+                                                class="p-3 px-2 border border-zinc-600"
+                                                contenteditable="true"
+                                                bind:textContent={item.SEQ}
+                                            ></td>
+                                            <td
+                                                class="p-3 px-2 border border-zinc-600"
+                                                contenteditable="true"
+                                                bind:textContent={item.TNAME}
+                                            ></td>
+                                            <td
+                                                class="p-3 px-2 border border-zinc-600"
+                                                contenteditable="true"
+                                                bind:textContent={item.gb}
+                                            ></td>
+                                            <td
+                                                class="p-3 px-2 border border-zinc-600"
+                                                contenteditable="true"
                                                 bind:textContent={item.APID}
                                             ></td>
                                             <td
@@ -468,31 +602,31 @@
                                                 class="p-3 px-2 border border-zinc-600"
                                                 contenteditable="true"
                                                 bind:textContent={item.DESC}
-                                            ></td>
-                                            <td
-                                                class="p-3 px-2 border border-zinc-600"
-                                                contenteditable="true"
-                                                bind:textContent={item.TID}
-                                            ></td>
-                                            <td
-                                                class="p-3 px-2 border border-zinc-600"
-                                                contenteditable="true"
-                                                bind:textContent={item.SEQ}
-                                            ></td>
-                                            <td
-                                                class="p-3 px-2 border border-zinc-600"
-                                                contenteditable="true"
-                                                bind:textContent={item.TNAME}
-                                            ></td>
-                                            <td
-                                                class="p-3 px-2 border border-zinc-600"
-                                                contenteditable="true"
-                                                bind:textContent={item.gb}
                                             ></td>
                                         {:else}
                                             <td
                                                 class="p-3 px-2 border border-zinc-600"
                                                 contenteditable="false"
+                                                bind:textContent={item.TID}
+                                            ></td>
+                                            <td
+                                                class="p-3 px-2 border border-zinc-600"
+                                                contenteditable="false"
+                                                bind:textContent={item.SEQ}
+                                            ></td>
+                                            <td
+                                                class="p-3 px-2 border border-zinc-600"
+                                                contenteditable="false"
+                                                bind:textContent={item.TNAME}
+                                            ></td>
+                                            <td
+                                                class="p-3 px-2 border border-zinc-600"
+                                                contenteditable="false"
+                                                bind:textContent={item.gb}
+                                            ></td>
+                                            <td
+                                                class="p-3 px-2 border border-zinc-600"
+                                                contenteditable="false"
                                                 bind:textContent={item.APID}
                                             ></td>
                                             <td
@@ -514,26 +648,6 @@
                                                 class="p-3 px-2 border border-zinc-600"
                                                 contenteditable="false"
                                                 bind:textContent={item.DESC}
-                                            ></td>
-                                            <td
-                                                class="p-3 px-2 border border-zinc-600"
-                                                contenteditable="false"
-                                                bind:textContent={item.TID}
-                                            ></td>
-                                            <td
-                                                class="p-3 px-2 border border-zinc-600"
-                                                contenteditable="false"
-                                                bind:textContent={item.SEQ}
-                                            ></td>
-                                            <td
-                                                class="p-3 px-2 border border-zinc-600"
-                                                contenteditable="false"
-                                                bind:textContent={item.TNAME}
-                                            ></td>
-                                            <td
-                                                class="p-3 px-2 border border-zinc-600"
-                                                contenteditable="false"
-                                                bind:textContent={item.gb}
                                             ></td>
                                         {/if}
                                         <td

@@ -240,13 +240,47 @@
             });
     }
 
-    // 엑셀 양식 다운로드
-    function downloadTemplate() {
+    // 엑셀 다운로드
+    function downloadExcel() {
+        if (list.length === 0) {
+            alert("다운로드할 데이터가 없습니다.");
+            return;
+        }
+
         const headers = tableHeader.slice(1); // 첫 번째 체크박스 컬럼 제외
-        const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+        const headerMap = {
+            이관ID: "did",
+            DB명: "dbname",
+            DB계정: "dbuser",
+            "Table(Asis)": "tblAsis",
+            "Table(Tobe)": "tblTobe",
+            "Index(Asis)": "idxAsis",
+            "Index(Tobe)": "idxTobe",
+            "Obj(Asis)": "objAsis",
+            "Obj(Tobe)": "objTobe",
+            "Invalid(Asis)": "invalidAsis",
+            "Invalid(Tobe)": "invalidTobe",
+            검증대상: "checkTbl",
+            오류건수: "checkErr",
+        };
+
+        const excelData = list.map((item) => {
+            const row = {};
+            headers.forEach((header) => {
+                const key = headerMap[header];
+                row[header] = item[key];
+            });
+            return row;
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        // 컬럼 너비 자동 조정 (선택 사항)
+        const wscols = headers.map(() => ({ wch: 15 }));
+        worksheet["!cols"] = wscols;
+
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
-        XLSX.writeFile(workbook, "DataTransfer_Template.xlsx");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "DataList");
+        XLSX.writeFile(workbook, "DataTransfer_List.xlsx");
     }
 
     // 입력 변경 시 체크박스 자동 선택
@@ -395,7 +429,7 @@
                             >
                             <button
                                 class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow"
-                                on:click={downloadTemplate}>양식다운로드</button
+                                on:click={downloadExcel}>엑셀다운로드</button
                             >
                             <button
                                 class="bg-white hover:bg-gray-100 text-gray-800 font-semibold mx-2 py-2 px-4 border border-gray-400 rounded shadow flex items-center justify-center"
