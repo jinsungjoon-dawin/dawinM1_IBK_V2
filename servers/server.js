@@ -14,7 +14,7 @@ import transformscenario from './cntr/transformScenario.js';
 import loaddataverifyresult from './cntr/loadDataVerifyResult.js';
 import useruploadmanagement from './cntr/userUploadManagement.js';
 import dataManagement from './cntr/dataManagement.js';
-
+import scenariouploadmanagement from './cntr/scenarioUploadManagement.js';
 import performManagement from './cntr/performManagement.js';
 
 const app = express();
@@ -53,6 +53,7 @@ app.use('/loaddataverifyresult', loaddataverifyresult);
 app.use('/useruploadmanagement', useruploadmanagement);
 app.use('/dataManagement', dataManagement);
 app.use('/performManagement', performManagement);
+app.use('/scenarioUploadManagement', scenariouploadmanagement);
 
 app.listen(port, '0.0.0.0', () => {
    console.log(`Server is up at port ${port}`);

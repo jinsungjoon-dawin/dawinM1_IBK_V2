@@ -209,7 +209,8 @@
             "delete": "삭제",
             "selectdDelete": "선택삭제",
             "cancel": "취소",
-            "targetCancel": "적용취소"
+            "targetCancel": "적용취소",
+            "scenarioAdd": "시나리오 추가"
         },
         "sel": {
             "status": {
@@ -294,5 +295,81 @@
         "deleteSuccess": "삭제를 완료하였습니다.",
         "saveConfirm": "저장을 하시겠습니까?",
         "saveSuccess": "저장을 완료하였습니다."
+    },
+    "scenarioUpload": {
+        "pageNm": "이행 시나리오 관리",
+        "tableHeader": [
+            " ",
+            "pkey",
+            "이행코드",
+            "이행명",
+            "mgb",
+            "시작일",
+            "종료일",
+            "시나리오건수",
+            "주제ID",
+            "주제명",
+            "시나리오코드",
+            "시나리오그룹",
+            "mclass",
+            "화면출력여부",
+            "작업설명",
+            "세부작업내용",
+            "계획시작일시",
+            "계획종료일시",
+            "시작일시",
+            "종료일시",
+            "예상소요시간",
+            "실소요시간",
+            "상태",
+            "선행ID",
+            "병행ID",
+            "PL담당자",
+            "SM담당자",
+            "수행서버"
+        ],
+        "selectData": [
+            {
+                "key": "1",
+                "value": "이행명"
+            },
+            {
+                "key": "2",
+                "value": "시나리오그룹"
+            },
+            {
+                "key": "3",
+                "value": "작업설명"
+            },
+            {
+                "key": "4",
+                "value": "종료일"
+            },
+            {
+                "key": "5",
+                "value": "상태"
+            }
+        ],
+        "check": "는 필수 항목입니다.",
+        "checkData": "체크하신 항목이 없습니다.",
+        "deleteConfirm": "삭제 하시겠습니까?",
+        "deleteSuccess": "삭제 완료하였습니다.",
+        "saveConfirm": "저장 하시겠습니까?",
+        "saveSuccess": "저장 완료하였습니다.",
+        "testTime": "테스트시간을 먼저 선택해주세요.",
+        "testOver": "테스트시간이 시작시간보다 클수 없습니다.",
+        "startTime": "시작시간을 먼저 선택해주세요.",
+        "startOver": "시작시간이 종료시간보다 클수 없습니다.",
+        "asisStartTime": "ASIS 시작시간을 먼저 선택해주세요.",
+        "asisStartOver": "ASIS 시작시간이 종료시간보다 클수 없습니다.",
+        "mid": "이행코드",
+        "cdDesc": "이행명",
+        "mgb": "mgb",
+        "scrio": "시나리오코드",
+        "scgrp": "시나리오그룹",
+        "workNm": "세부작업내용",
+        "planStDt": "계획시작일시",
+        "planEnDt": "계획종료일시",
+        "pkeycheck": "중복입니다."
     }
 }
