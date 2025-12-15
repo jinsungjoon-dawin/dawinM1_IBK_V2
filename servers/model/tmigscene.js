@@ -191,37 +191,54 @@ const tmigscene = {
         try {
             let mid;
             let pkey;
-            let actstdt;
+            let actstst;
             let actendt;
             let wstat;
 
             for (var i = 0; i < contact.length; i++) {
+                // console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+                // console.log(contact[i]); 		
+                // console.log(contact[k].mid); 		
+                // console.log(contact[k].pkey); 		
+                // console.log(contact[k].actstst); 		
+                // console.log(contact[k].actendt); 		
+                // console.log(contact[k].wstat); 		
+
                 mid = contact[i].mid;
                 pkey = contact[i].pkey;
-                actstdt = contact[i].actstdt;
+                actstst = contact[i].actstst;
                 actendt = contact[i].actendt;
                 wstat = contact[i].wstat;
+                // console.log('mid : ' + mid); 		
+                // console.log('pkey : ' + pkey); 		
+                // console.log('actstst : ' + actstst); 		
+                // console.log('actendt : ' + actendt); 		
+                // console.log('actendt : ' + wstat); 		
 
-                if (!actstdt || actstdt === '') {
-                    actstdt = '1900-01-01';
+                if (actstst === '') {
+                    actstst = '1900-01-01';
                 }
 
-                if (!actendt || actendt === '') {
+                if (actendt === '') {
                     actendt = '1900-01-01';
                 }
 
                 qstr = `update tmigscene 
                         set ActStdt=?
                           , ActEndt=?
-                          , wstat=?
                         where pkey = ? 
                         and mid = ?
                     ` ;
 
-                r = await mondb.query(qstr, [actstdt, actendt, wstat, pkey, mid]);
+                r = mondb.query(qstr, [actstst, actendt, pkey, mid]);
 
                 qstr2 = `update tmigscene 
-                        set acttime = case when ActStdt = '1900-01-01' and ActEndt = '1900-01-01' then 0
+                        set wstat = case when ActStdt = '1900-01-01' and ActEndt = '1900-01-01' then 0
+                                         when ActStdt <> '1900-01-01' and ActEndt = '1900-01-01' then 1
+                                         when ActStdt <> '1900-01-01' and ActEndt <> '1900-01-01' and datediff(planEndt, ActEndt) <= 0 then 2
+                                         when ActStdt <> '1900-01-01' and ActEndt <> '1900-01-01' and datediff(planEndt, ActEndt) > 0 then 3
+                                         else 2 end
+                          , acttime = case when ActStdt = '1900-01-01' and ActEndt = '1900-01-01' then 0
                                            when ActStdt = '1900-01-01' and ActEndt <> '1900-01-01' then 0
                                            when ActStdt <> '1900-01-01' and ActEndt = '1900-01-01' then 0
                                            when ActStdt <> '1900-01-01' and ActEndt <> '1900-01-01' then timestampdiff(hour, date_format(ActStdt, '%Y-%m-%d %H:%i:%s'), date_format(ActEndt, '%Y-%m-%d %H:%i:%s')) end
@@ -229,7 +246,7 @@ const tmigscene = {
                         and mid = ?
                     ` ;
 
-                r2 = await mondb.query(qstr2, [pkey, mid]);
+                r2 = mondb.query(qstr2, [pkey, mid]);
 
             }
         } catch (e) {
@@ -238,6 +255,15 @@ const tmigscene = {
         }
 
         return (1);
+
+    },
+
+    /**
+     * 시나리오 Upload관리 Max Pkey 조회
+     */
+    ttmigscenemaxpkey: async () => {
+        let rows = await mondb.query(`select ifnull(max(pkey), 0) as maxpkey from tmigscene`);
+        return rows[0].maxpkey;
     },
 
     /**
@@ -266,6 +292,7 @@ const tmigscene = {
        x.esttime as esttime, -- (update대상)예상소요시간
        x.acttime as acttime, -- (update대상)실소요시간
        x.wstat as wstat, -- (update대상)상태(0:계획, 1:진행중, 2:완료, 3:미수행)
+       x.wstatnm as wstatnm, -- 상태명
        x.pscno as pscno, -- (update대상) 선행ID
        x.cscno as cscno, -- (update대상)병행ID
        x.siusr as siusr, -- (update대상)SI담당자
@@ -294,6 +321,10 @@ from (
           c.esttime as esttime, -- (update대상)예상소요시간
           c.acttime as acttime, -- (update대상)실소요시간
           c.wstat as wstat, -- (update대상)상태(0:계획, 1:진행중, 2:완료, 3:미수행)
+          case c.wstat when 0 then '계획'
+                        when 1 then '진행중'
+                        when 2 then '완료'
+                        when 3 then '미수행' end as wstatnm, -- 상태명
           c.pscno as pscno, -- (update대상) 선행ID
           c.cscno as cscno, -- (update대상)병행ID
           c.siusr as siusr, -- (update대상)SI담당자
@@ -304,7 +335,7 @@ from (
     join tmigcode a on a.mid = c.mid
     left outer join tapid d on c.apid = d.apid
 ) x
-order by cddesc, scgrp, scno
+order by cddesc, scgrp, scno 
         `);
 
         return (rows);
@@ -314,397 +345,119 @@ order by cddesc, scgrp, scno
      * 시나리오 Upload관리 관리 검색
      */
     ttmigscenesearch: async (args) => {
-        // console.log("args.gubun:" + args.gubun);
-        // console.log("args.searchtxt:" + args.searchtxt);
-        let gubun = 1;
-        let searchtxt = "";
-        let rows = 0;
-        gubun = args.gubun;
-        searchtxt = args.searchtxt;
-        // console.log('gubun: ' + gubun);
-        // console.log('searchtxt: ' + searchtxt);
+        const { gubun, searchtxt, cddesc, date } = args;
 
-        if (gubun == 1) { // 이행명: cddesc
-            // b.dname: 이관차수명
-            rows = await mondb.query(` select x.pkey as pkey, -- (update대상) pkey
-                                          x.mid as mid, -- (update대상)이행코드
-                                          x.cddesc as cddesc, -- 이행명
-                                          x.mgb as mgb, -- mgb(1:리허설, 2:본이행)
-                                          x.startdt as startdt, -- 시작일
-                                          x.enddt as enddt, -- 종료일
-                                          x.scenario as scenario, -- 시나리오건수
-                                          x.apid as apid, -- (update대상)주제ID
-                                          x.apnm as apnm, -- 주제명
-                                          x.scno as scno, -- (update대상)시나리오코드
-                                          x.scgrp as scgrp, -- (update대상)시나리오그룹
-                                          x.mclass as mclass, -- mclass(1:사전준비, 2:사전이행, 3:본이행)
-                                          x.disyn as disyn, -- 화면출력여부(0:출력, 1:미출력)
-                                          x.sidesc as sidesc, -- (update대상)작업설명
-                                          x.worknm as worknm, -- (update대상)세부작업내용
-                                          x.planstdt as planstdt, -- (update대상)계획시작일시
-                                          x.planendt as planendt, -- (update대상)계획종료일시
-                                          x.actstdt as actstdt, -- (update대상)시작일시
-                                          x.actendt as actendt, -- (update대상)종료일시
-                                          x.esttime as esttime, -- (update대상)예상소요시간
-                                          x.acttime as acttime, -- (update대상)실소요시간
-                                          x.wstat as wstat, -- (update대상)상태(0:계획, 1:진행중, 2:완료, 3:미수행)
-                                          x.pscno as pscno, -- (update대상) 선행ID
-                                          x.cscno as cscno, -- (update대상)병행ID
-                                          x.siusr as siusr, -- (update대상)SI담당자
-                                          x.smusr as smusr, -- (update대상)SM담당자
-                                          x.pserver as pserver -- 수행서버
-                                   from (select c.pkey as pkey,
-                                                c.mid as mid,
-                                                a.desc as cddesc,
-                                                a.mgb as mgb,
-                                                a.startDt as startdt,
-                                                a.endDt as enddt,
-                                                a.scenario as scenario,
-                                                c.apid as apid,
-                                                d.apnm as apnm,
-                                                c.scno as scno,
-                                                c.scgrp as scgrp,
-                                                b.mclass as mclass,
-                                                b.show as disyn,
-                                                c.desc as sidesc,
-                                                c.worknm as worknm,
-                                                c.planStdt as planstdt,
-                                                c.planEndt as planendt,
-                                                c.ActStdt as actstdt,
-                                                c.ActEndt as actendt,
-                                                c.esttime as esttime,
-                                                c.acttime as acttime,
-                                                c.wstat as wstat,
-                                                c.pscno as pscno,
-                                                c.cscno as cscno,
-                                                c.siUsr as siusr,
-                                                c.smUsr as smusr,
-                                                c.pserver as pserver
-                                         from tmigscene c
-                                         join tmigsgrp b on b.scgrp = c.scgrp
-                                         join tmigcode a on a.mid = c.mid
-                                         left outer join tapid d on c.apid = d.apid
-                                   ) x
-                                   where cddesc like concat(concat('%',?),'%')
-            `, [searchtxt]);
-        } else if (gubun == 2) { // 시나리오그룹: scgrp
-            // a.dbname: DB명
-            rows = await mondb.query(` select x.pkey as pkey,
-                                          x.mid as mid,
-                                          x.cddesc as cddesc,
-                                          x.mgb as mgb,
-                                          x.startdt as startdt,
-                                          x.enddt as enddt,
-                                          x.scenario as scenario,
-                                          x.apid as apid,
-                                          x.apnm as apnm,
-                                          x.scno as scno,
-                                          x.scgrp as scgrp,
-                                          x.mclass as mclass,
-                                          x.disyn as disyn,
-                                          x.sidesc as sidesc,
-                                          x.worknm as worknm,
-                                          x.planstdt as planstdt,
-                                          x.planendt as planendt,
-                                          x.actstdt as actstdt,
-                                          x.actendt as actendt,
-                                          x.esttime as esttime,
-                                          x.acttime as acttime,
-                                          x.wstat as wstat,
-                                          x.pscno as pscno,
-                                          x.cscno as cscno,
-                                          x.siusr as siusr,
-                                          x.smusr as smusr,
-                                          x.pserver as pserver
-                                   from (select c.pkey as pkey,
-                                                c.mid as mid,
-                                                a.desc as cddesc,
-                                                a.mgb as mgb,
-                                                a.startDt as startdt,
-                                                a.endDt as enddt,
-                                                a.scenario as scenario,
-                                                c.apid as apid,
-                                                d.apnm as apnm,
-                                                c.scno as scno,
-                                                c.scgrp as scgrp,
-                                                b.mclass as mclass,
-                                                b.show as disyn,
-                                                c.desc as sidesc,
-                                                c.worknm as worknm,
-                                                c.planStdt as planstdt,
-                                                c.planEndt as planendt,
-                                                c.ActStdt as actstdt,
-                                                c.ActEndt as actendt,
-                                                c.esttime as esttime,
-                                                c.acttime as acttime,
-                                                c.wstat as wstat,
-                                                c.pscno as pscno,
-                                                c.cscno as cscno,
-                                                c.siUsr as siusr,
-                                                c.smUsr as smusr,
-                                                c.pserver as pserver
-                                         from tmigscene c
-                                         join tmigsgrp b on b.scgrp = c.scgrp
-                                         join tmigcode a on a.mid = c.mid
-                                         left outer join tapid d on c.apid = d.apid
-                                   ) x
-                                   where scgrp like concat(concat('%',?),'%')
-            `, [searchtxt]);
-        } else if (gubun == 3) { // 작업설명: sidesc
-            // a.dbuser: DB계정
-            rows = await mondb.query(` select x.pkey as pkey,
-                                          x.mid as mid,
-                                          x.cddesc as cddesc,
-                                          x.mgb as mgb,
-                                          x.startdt as startdt,
-                                          x.enddt as enddt,
-                                          x.scenario as scenario,
-                                          x.apid as apid,
-                                          x.apnm as apnm,
-                                          x.scno as scno,
-                                          x.scgrp as scgrp,
-                                          x.mclass as mclass,
-                                          x.disyn as disyn,
-                                          x.sidesc as sidesc,
-                                          x.worknm as worknm,
-                                          x.planstdt as planstdt,
-                                          x.planendt as planendt,
-                                          x.actstdt as actstdt,
-                                          x.actendt as actendt,
-                                          x.esttime as esttime,
-                                          x.acttime as acttime,
-                                          x.wstat as wstat,
-                                          x.pscno as pscno,
-                                          x.cscno as cscno,
-                                          x.siusr as siusr,
-                                          x.smusr as smusr,
-                                          x.pserver as pserver
-                                   from (select c.pkey as pkey,
-                                                c.mid as mid,
-                                                a.desc as cddesc,
-                                                a.mgb as mgb,
-                                                a.startDt as startdt,
-                                                a.endDt as enddt,
-                                                a.scenario as scenario,
-                                                c.apid as apid,
-                                                d.apnm as apnm,
-                                                c.scno as scno,
-                                                c.scgrp as scgrp,
-                                                b.mclass as mclass,
-                                                b.show as disyn,
-                                                c.desc as sidesc,
-                                                c.worknm as worknm,
-                                                c.planStdt as planstdt,
-                                                c.planEndt as planendt,
-                                                c.ActStdt as actstdt,
-                                                c.ActEndt as actendt,
-                                                c.esttime as esttime,
-                                                c.acttime as acttime,
-                                                c.wstat as wstat,
-                                                c.pscno as pscno,
-                                                c.cscno as cscno,
-                                                c.siUsr as siusr,
-                                                c.smUsr as smusr,
-                                                c.pserver as pserver
-                                         from tmigscene c
-                                         join tmigsgrp b on b.scgrp = c.scgrp
-                                         join tmigcode a on a.mid = c.mid
-                                         left outer join tapid d on c.apid = d.apid
-                                   ) x
-                                   where sidesc like concat(concat('%',?), '%')
-            `, [searchtxt]);
-        } else if (gubun == 4) { // 종료일: enddt
-            // b.wdate: 작업일
-            rows = await mondb.query(` select x.pkey as pkey,
-                                          x.mid as mid,
-                                          x.cddesc as cddesc,
-                                          x.mgb as mgb,
-                                          x.startdt as startdt,
-                                          x.enddt as enddt,
-                                          x.scenario as scenario,
-                                          x.apid as apid,
-                                          x.apnm as apnm,
-                                          x.scno as scno,
-                                          x.scgrp as scgrp,
-                                          x.mclass as mclass,
-                                          x.disyn as disyn,
-                                          x.sidesc as sidesc,
-                                          x.worknm as worknm,
-                                          x.planstdt as planstdt,
-                                          x.planendt as planendt,
-                                          x.actstdt as actstdt,
-                                          x.actendt as actendt,
-                                          x.esttime as esttime,
-                                          x.acttime as acttime,
-                                          x.wstat as wstat,
-                                          x.pscno as pscno,
-                                          x.cscno as cscno,
-                                          x.siusr as siusr,
-                                          x.smusr as smusr,
-                                          x.pserver as pserver
-                                   from (select c.pkey as pkey,
-                                                c.mid as mid,
-                                                a.desc as cddesc,
-                                                a.mgb as mgb,
-                                                a.startDt as startdt,
-                                                a.endDt as enddt,
-                                                a.scenario as scenario,
-                                                c.apid as apid,
-                                                d.apnm as apnm,
-                                                c.scno as scno,
-                                                c.scgrp as scgrp,
-                                                b.mclass as mclass,
-                                                b.show as disyn,
-                                                c.desc as sidesc,
-                                                c.worknm as worknm,
-                                                c.planStdt as planstdt,
-                                                c.planEndt as planendt,
-                                                c.ActStdt as actstdt,
-                                                c.ActEndt as actendt,
-                                                c.esttime as esttime,
-                                                c.acttime as acttime,
-                                                c.wstat as wstat,
-                                                c.pscno as pscno,
-                                                c.cscno as cscno,
-                                                c.siUsr as siusr,
-                                                c.smUsr as smusr,
-                                                c.pserver as pserver
-                                         from tmigscene c
-                                         join tmigsgrp b on b.scgrp = c.scgrp
-                                         join tmigcode a on a.mid = c.mid
-                                         left outer join tapid d on c.apid = d.apid
-                                   ) x
-                                   where enddt >= date_format(?, '%Y-%m-%d %T') and enddt < DATE_ADD(date_format(?, '%Y-%m-%d %T'), INTERVAL 1 day)
-            `, [searchtxt, searchtxt]);
-        } else if (gubun == 5) { // 상태: wstat
-            // a.checkerr: 오류건수
-            rows = await mondb.query(` select x.pkey as pkey,
-                                          x.mid as mid,
-                                          x.cddesc as cddesc,
-                                          x.mgb as mgb,
-                                          x.startdt as startdt,
-                                          x.enddt as enddt,
-                                          x.scenario as scenario,
-                                          x.apid as apid,
-                                          x.apnm as apnm,
-                                          x.scno as scno,
-                                          x.scgrp as scgrp,
-                                          x.mclass as mclass,
-                                          x.disyn as disyn,
-                                          x.sidesc as sidesc,
-                                          x.worknm as worknm,
-                                          x.planstdt as planstdt,
-                                          x.planendt as planendt,
-                                          x.actstdt as actstdt,
-                                          x.actendt as actendt,
-                                          x.esttime as esttime,
-                                          x.acttime as acttime,
-                                          x.wstat as wstat,
-                                          x.pscno as pscno,
-                                          x.cscno as cscno,
-                                          x.siusr as siusr,
-                                          x.smusr as smusr,
-                                          x.pserver as pserver
-                                   from (select c.pkey as pkey,
-                                                c.mid as mid,
-                                                a.desc as cddesc,
-                                                a.mgb as mgb,
-                                                a.startDt as startdt,
-                                                a.endDt as enddt,
-                                                a.scenario as scenario,
-                                                c.apid as apid,
-                                                d.apnm as apnm,
-                                                c.scno as scno,
-                                                c.scgrp as scgrp,
-                                                b.mclass as mclass,
-                                                b.show as disyn,
-                                                c.desc as sidesc,
-                                                c.worknm as worknm,
-                                                c.planStdt as planstdt,
-                                                c.planEndt as planendt,
-                                                c.ActStdt as actstdt,
-                                                c.ActEndt as actendt,
-                                                c.esttime as esttime,
-                                                c.acttime as acttime,
-                                                c.wstat as wstat,
-                                                c.pscno as pscno,
-                                                c.cscno as cscno,
-                                                c.siUsr as siusr,
-                                                c.smUsr as smusr,
-                                                c.pserver as pserver
-                                         from tmigscene c
-                                         join tmigsgrp b on b.scgrp = c.scgrp
-                                         join tmigcode a on a.mid = c.mid
-                                         left outer join tapid d on c.apid = d.apid
-                                   ) x
-                                   where wstat like concat(concat('%',?),'%')
-            `, [searchtxt]);
-        } else { // 기타
-            // b.dname: 이관차수명
-            rows = await mondb.query(` select x.pkey as pkey,
-                                          x.mid as mid,
-                                          x.cddesc as cddesc,
-                                          x.mgb as mgb,
-                                          x.startdt as startdt,
-                                          x.enddt as enddt,
-                                          x.scenario as scenario,
-                                          x.apid as apid,
-                                          x.apnm as apnm,
-                                          x.scno as scno,
-                                          x.scgrp as scgrp,
-                                          x.mclass as mclass,
-                                          x.disyn as disyn,
-                                          x.sidesc as sidesc,
-                                          x.worknm as worknm,
-                                          x.planstdt as planstdt,
-                                          x.planendt as planendt,
-                                          x.actstdt as actstdt,
-                                          x.actendt as actendt,
-                                          x.esttime as esttime,
-                                          x.acttime as acttime,
-                                          x.wstat as wstat,
-                                          x.pscno as pscno,
-                                          x.cscno as cscno,
-                                          x.siusr as siusr,
-                                          x.smusr as smusr,
-                                          x.pserver as pserver
-                                   from (select c.pkey as pkey,
-                                                c.mid as mid,
-                                                a.desc as cddesc,
-                                                a.mgb as mgb,
-                                                a.startDt as startdt,
-                                                a.endDt as enddt,
-                                                a.scenario as scenario,
-                                                c.apid as apid,
-                                                d.apnm as apnm,
-                                                c.scno as scno,
-                                                c.scgrp as scgrp,
-                                                b.mclass as mclass,
-                                                b.show as disyn,
-                                                c.desc as sidesc,
-                                                c.worknm as worknm,
-                                                c.planStdt as planstdt,
-                                                c.planEndt as planendt,
-                                                c.ActStdt as actstdt,
-                                                c.ActEndt as actendt,
-                                                c.esttime as esttime,
-                                                c.acttime as acttime,
-                                                c.wstat as wstat,
-                                                c.pscno as pscno,
-                                                c.cscno as cscno,
-                                                c.siUsr as siusr,
-                                                c.smUsr as smusr,
-                                                c.pserver as pserver
-                                         from tmigscene c
-                                         join tmigsgrp b on b.scgrp = c.scgrp
-                                         join tmigcode a on a.mid = c.mid
-                                         left outer join tapid d on c.apid = d.apid
-                                   ) x
-                                   where cddesc like concat(concat('%',?),'%')
-            `, [searchtxt]);
+        // Base Query (Wrapped in x)
+        const baseQuery = `
+            select x.pkey as pkey,
+                   x.mid as mid,
+                   x.cddesc as cddesc,
+                   x.mgb as mgb,
+                   x.startdt as startdt,
+                   x.enddt as enddt,
+                   x.scenario as scenario,
+                   x.apid as apid,
+                   x.apnm as apnm,
+                   x.scno as scno,
+                   x.scgrp as scgrp,
+                   x.mclass as mclass,
+                   x.disyn as disyn,
+                   x.sidesc as sidesc,
+                   x.worknm as worknm,
+                   x.planstdt as planstdt,
+                   x.planendt as planendt,
+                   x.actstdt as actstdt,
+                   x.actendt as actendt,
+                   x.esttime as esttime,
+                   x.acttime as acttime,
+                   x.wstat as wstat,
+                   x.pscno as pscno,
+                   x.cscno as cscno,
+                   x.siusr as siusr,
+                   x.smusr as smusr,
+                   x.pserver as pserver
+            from (select c.pkey as pkey,
+                         c.mid as mid,
+                         a.desc as cddesc,
+                         a.mgb as mgb,
+                         a.startDt as startdt,
+                         a.endDt as enddt,
+                         a.scenario as scenario,
+                         c.apid as apid,
+                         d.apnm as apnm,
+                         c.scno as scno,
+                         c.scgrp as scgrp,
+                         b.mclass as mclass,
+                         b.show as disyn,
+                         c.desc as sidesc,
+                         c.worknm as worknm,
+                         c.planStdt as planstdt,
+                         c.planEndt as planendt,
+                         c.ActStdt as actstdt,
+                         c.ActEndt as actendt,
+                         c.esttime as esttime,
+                         c.acttime as acttime,
+                         c.wstat as wstat,
+                         c.pscno as pscno,
+                         c.cscno as cscno,
+                         c.siUsr as siusr,
+                         c.smUsr as smusr,
+                         c.pserver as pserver
+                  from tmigscene c
+                  join tmigsgrp b on b.scgrp = c.scgrp
+                  join tmigcode a on a.mid = c.mid
+                  left outer join tapid d on c.apid = d.apid
+            ) x
+        `;
+
+        let whereClauses = ["1=1"];
+        let params = [];
+
+        // 1. Fixed Filters (Composite)
+        // Scenario Name Dropdown Filter
+        if (cddesc && cddesc.trim() !== "") {
+            whereClauses.push("x.cddesc = ?");
+            params.push(cddesc);
         }
 
-        return (rows);
+        // Performance Date Dropdown Filter
+        /* if (date && date.trim() !== "") {
+             whereClauses.push("x.enddt >= date_format(?, '%Y-%m-%d %T')");
+             whereClauses.push("x.enddt < DATE_ADD(date_format(?, '%Y-%m-%d %T'), INTERVAL 1 day)");
+             params.push(date, date);
+         }
+ */
+        // 2. Generic Search Filter
+        if (searchtxt && searchtxt.trim() !== "") {
+            if (gubun == 2) { // Scenario Group
+                whereClauses.push("x.scgrp like concat('%', ?, '%')");
+                params.push(searchtxt);
+            } else if (gubun == 3) { // Work Description
+                whereClauses.push("x.sidesc like concat('%', ?, '%')");
+                params.push(searchtxt);
+            } else if (gubun == 4) { // End Date
+                whereClauses.push("x.enddt >= date_format(?, '%Y-%m-%d %T')");
+                whereClauses.push("x.enddt < DATE_ADD(date_format(?, '%Y-%m-%d %T'), INTERVAL 1 day)");
+                params.push(searchtxt, searchtxt);
+            } else if (gubun == 6) { // Start Date
+                whereClauses.push("x.startdt >= date_format(?, '%Y-%m-%d %T')");
+                whereClauses.push("x.startdt < DATE_ADD(date_format(?, '%Y-%m-%d %T'), INTERVAL 1 day)");
+                params.push(searchtxt, searchtxt);
+            } else if (gubun == 5) { // Status (wstat)
+                whereClauses.push("x.wstat like concat('%', ?, '%')");
+                params.push(searchtxt);
+            } else { // Default (e.g. gubun 1 or others)
+                // Search mainly by Scenario Name as per original logic, or mixed?
+                // Original used cddesc for gubun 1/default.
+                whereClauses.push("x.cddesc like concat('%', ?, '%')");
+                params.push(searchtxt);
+            }
+        }
+
+        const finalQuery = `${baseQuery} WHERE ${whereClauses.join(' AND ')} ORDER BY cddesc, scgrp, scno`;
+
+        let rows = await mondb.query(finalQuery, params);
+        return rows;
     },
 
     /**
@@ -855,7 +608,12 @@ order by cddesc, scgrp, scno
                         [pkey, mid, apid, scno, scgrp, desc, worknm, planstdt, planendt, actstdt, actendt, esttime, acttime, wstat, pscno, cscno, siusr, smusr, pserver]);
 
                     qstr2 = `update tmigscene
-                             set acttime = case when ActStdt = '1900-01-01' and ActEndt = '1900-01-01' then 0
+                             set wstat = case when ActStdt = '1900-01-01' and ActEndt = '1900-01-01' then 0
+                                              when ActStdt <> '1900-01-01' and ActEndt = '1900-01-01' then 1
+                                              when ActStdt <> '1900-01-01' and ActEndt <> '1900-01-01' and datediff(planEndt, ActEndt) <= 0 then 2
+                                              when ActStdt <> '1900-01-01' and ActEndt <> '1900-01-01' and datediff(planEndt, ActEndt) > 0 then 3
+                                              else 2 end
+                                , acttime = case when ActStdt = '1900-01-01' and ActEndt = '1900-01-01' then 0
                                                  when ActStdt = '1900-01-01' and ActEndt <> '1900-01-01' then 0
                                                  when ActStdt <> '1900-01-01' and ActEndt = '1900-01-01' then 0
                                                  when ActStdt <> '1900-01-01' and ActEndt <> '1900-01-01' then timestampdiff(hour,
@@ -887,7 +645,12 @@ order by cddesc, scgrp, scno
                         [mid, apid, scno, scgrp, desc, worknm, planstdt, planendt, actstdt, actendt, esttime, acttime, wstat, pscno, cscno, siusr, smusr, pserver, pkey]);
 
                     qstr2 = `update tmigscene
-                             set acttime = case when ActStdt = '1900-01-01' and ActEndt = '1900-01-01' then 0
+                             set wstat = case when ActStdt = '1900-01-01' and ActEndt = '1900-01-01' then 0
+                                              when ActStdt <> '1900-01-01' and ActEndt = '1900-01-01' then 1
+                                              when ActStdt <> '1900-01-01' and ActEndt <> '1900-01-01' and datediff(planEndt, ActEndt) <= 0 then 2
+                                              when ActStdt <> '1900-01-01' and ActEndt <> '1900-01-01' and datediff(planEndt, ActEndt) > 0 then 3
+                                              else 2 end
+                                , acttime = case when ActStdt = '1900-01-01' and ActEndt = '1900-01-01' then 0
                                                  when ActStdt = '1900-01-01' and ActEndt<> '1900-01-01' then 0
                                                  when ActStdt<> '1900-01-01' and ActEndt = '1900-01-01' then 0
                                                  when ActStdt<> '1900-01-01' and ActEndt<> '1900-01-01' then timestampdiff(hour,

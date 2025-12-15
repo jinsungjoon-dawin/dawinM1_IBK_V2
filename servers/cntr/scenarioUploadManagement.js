@@ -6,17 +6,23 @@ const router = Router();
 
 // 조회 (검색 포함)
 router.get('/scenario_list', async function (req, res, next) {
-    const { gubun, searchtxt } = req.query;
+    const { gubun, searchtxt, cddesc, date } = req.query;
 
     let rdata;
     // searchtxt가 존재하면 검색, 없으면 전체 리스트 (혹은 전체 리스트가 기본)
     // tmigscene.js의 ttmigscenesearch는 검색 조건이 있을 때 사용
     // tmigscene.js의 ttmigscenelist는 전체 리스트 조회
-    if (searchtxt) {
-        rdata = await tmigscene.ttmigscenesearch({ gubun, searchtxt });
+    if (searchtxt || cddesc || date) {
+        rdata = await tmigscene.ttmigscenesearch({ gubun, searchtxt, cddesc, date });
     } else {
         rdata = await tmigscene.ttmigscenelist();
     }
+    res.json(rdata);
+});
+
+// Max Pkey 조회
+router.get('/scenario_max_pkey', async function (req, res, next) {
+    const rdata = await tmigscene.ttmigscenemaxpkey();
     res.json(rdata);
 });
 
@@ -30,7 +36,8 @@ router.get('/scenario_sel_data', async function (req, res, next) {
     // Let's modify the response to include 'desc' alias for 'midnm' just in case.
     const mappedData = rdata.map(item => ({
         ...item,
-        desc: item.midnm // Alias midnm to desc
+        cddesc: item.midnm, // Alias midnm to cddesc (Scenario Name)
+        desc: item.midnm // Keep desc for compatibility if needed elsewhere, but cddesc is preferred for Scenario Name to avoid collision with Work Description
     }));
     res.json(mappedData);
 });
