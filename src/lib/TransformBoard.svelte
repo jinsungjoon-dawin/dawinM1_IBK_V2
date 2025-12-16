@@ -12,6 +12,7 @@
 
   let mid;
   let mid1;
+  let midnm1;
   let sts;
   let sts1;
   let wsts;
@@ -55,6 +56,7 @@
   ) {
     selected = false;
     mid1 = mid; //mid 5
+    midnm1 = selectedValues.midnm;
     wsts1 = scenarioAll; //99
     scgrp = scgrp;
     sts1 = sts; //5 전체 보기시 구분값값
@@ -64,7 +66,7 @@
     // alert(scenarioAll)
     // alert(sts)
     // if (sts  != 5) {
-    //   let transformboardlist="/transformscenario/transsc_list?mid="+mid+"&wstat="+scenarioAll
+    //   let transformboardlist="/transformscenario/transsc_list?mid="+mid+"&wstat="+scenarioAll+"&scgrp="+scgrp
     //   const transformboardScenario = await fetch($rooturl+transformboardlist);
     //   if (transformboardScenario.ok){
     //     getscenariodetaildata= await transformboardScenario.json();
@@ -78,7 +80,7 @@
 
     // }else{
     //   //alert("5 입니다");
-    //     let transformboardlist="/transformscenario/transsc_list?mid="+mid+"&wstat="+scenarioAll
+    //     let transformboardlist="/transformscenario/transsc_list?mid="+mid+"&wstat="+scenarioAll+"&scgrp="+scgrp
     //     const transformboardScenario = await fetch($rooturl+transformboardlist);
     //     console.log("transformboardScenario==5"+transformboardScenario);
 
@@ -387,7 +389,12 @@
     </div>
   </div>
 {:else}
-  <TransformBoardDetail mid={mid1} wsts={wsts1} sts={sts1} {scgrp}
+  <TransformBoardDetail
+    mid={mid1}
+    wsts={wsts1}
+    sts={sts1}
+    {scgrp}
+    midnm={midnm1}
   ></TransformBoardDetail>
 {/if}
 

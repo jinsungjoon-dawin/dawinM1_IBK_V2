@@ -164,6 +164,7 @@ const tmigscene = {
                                                     , a.pserver		    as pserver
                                                 from tmigscene a
                                                 where a.mid = ?
+                                                and a.scgrp like case? when '0.전체' then concat('%','%') else concat('%',concat(?,'%')) end
                                                 and nvl(a.wstat,99) between (case ? when 99 then 0 else ? end) and (case ? when 99 then 99 else ? end)
                                             ) x
                                         join tmigcode y
@@ -171,8 +172,8 @@ const tmigscene = {
                                         join tmigsgrp z
                                             on x.scgrp = z.scgrp
                                         where z.show = 0
-                                        order by x.mid, x.scgrp, x.wstat	
-                                    `, [args.query.mid, args.query.wstat, args.query.wstat, args.query.wstat, args.query.wstat]);
+                                        order by y.desc,x.scgrp, x.scno,x.wstat	
+                                    `, [args.query.mid, args.query.scgrp || ' 전체', args.query.scgrp || ' 전체', args.query.wstat, args.query.wstat, args.query.wstat, args.query.wstat]);
         return (rows);
     },
     /**

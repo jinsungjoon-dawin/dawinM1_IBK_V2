@@ -11,6 +11,7 @@
   export let wsts;
   export let sts;
   export let scgrp = String;
+  export let midnm = "";
   let selectAll = false; // 전체 체크박스 상태
   let selected = true;
   let childMessage = "";
@@ -56,7 +57,7 @@
         mid +
         "&wstat=" +
         wsts +
-        "&scgrp" +
+        "&scgrp=" +
         scgrp;
       const transformboardScenario = await fetch($rooturl + transformboardlist);
       console.log("transformboardScenario==5" + transformboardScenario);
@@ -372,8 +373,11 @@
           <div
             class="flex w-full border-b-2 border-gray-500 items-center"
           ></div>
-          <div class="flex justify-end items-center w-full mt-3">
-            <div class="px-4 text-start"></div>
+          <div class="flex justify-between items-center w-full mt-3">
+            <div class="px-4 text-start">
+              <label class="text-white text-xl font-bold">{midnm} {scgrp}</label
+              >
+            </div>
             <div class="flex gap-4 justify-end mr-14 mt-2">
               {#if sts != 5}
                 <label class="text-gray-300">상태</label>

@@ -223,7 +223,7 @@
   const dispatch = createEventDispatcher();
   function call(flag, mid) {
     childMessage = flag;
-    dispatch("message", { flag: flag, mid: mid });
+    dispatch("message", { flag: flag, mid: mid, scgrp: item.scgrp });
   }
 </script>
 
@@ -249,14 +249,55 @@
   {#each statusData as { label, count, flag, mid }}
     <span class="w-1/3 text-center -mt-5 item mb-1 testCol text-xs">
       <div
+        class={flag === 99 ? "" : "cursor-pointer"}
         on:click={() => {
-          call(flag, mid);
+          if (flag !== 99) call(flag, mid);
         }}
       >
         {label} <br />
         {count}<br />
         {selflag}
       </div>
+      {#if label === "Task"}
+        <button
+          class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mt-1 text-xs"
+          on:click|stopPropagation={() => call(99, mid)}
+        >
+          상세보기
+        </button>
+      {/if}
+      {#if label === "계획"}
+        <button
+          class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mt-1 text-xs"
+          on:click|stopPropagation={() => call(0, mid)}
+        >
+          상세보기
+        </button>
+      {/if}
+      {#if label === "진행중"}
+        <button
+          class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mt-1 text-xs"
+          on:click|stopPropagation={() => call(1, mid)}
+        >
+          상세보기
+        </button>
+      {/if}
+      {#if label === "완료"}
+        <button
+          class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mt-1 text-xs"
+          on:click|stopPropagation={() => call(2, mid)}
+        >
+          상세보기
+        </button>
+      {/if}
+      {#if label === "미수행"}
+        <button
+          class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mt-1 text-xs"
+          on:click|stopPropagation={() => call(3, mid)}
+        >
+          상세보기
+        </button>
+      {/if}
     </span>
   {/each}
 </div>
