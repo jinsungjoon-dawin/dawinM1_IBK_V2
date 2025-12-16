@@ -9,7 +9,7 @@
     let gubun;
     let searchtxt = "";
     let currentPage = 1;
-    let itemsPerPage = 10;
+    let itemsPerPage = 15;
     let pageRange = 10;
     let list = [];
     let statusData = [];
@@ -650,7 +650,9 @@
                 </div>
             </div>
 
-            <div class="w-full overflow-auto bg-gray-700 px-3 rounded-lg">
+            <div
+                class="w-full overflow-auto bg-gray-700 px-3 rounded-lg max-h-[calc(100vh-310px)]"
+            >
                 <table
                     class="w-full text-md text-nowrap bg-gray-800 text-white shadow-md rounded mb-4"
                 >

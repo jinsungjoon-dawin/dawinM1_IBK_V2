@@ -88,7 +88,7 @@
   let selectedStatus = "ALL";
   let searchSubject = "ALL";
   let currentPage = 1;
-  let itemsPerPage = 10;
+  let itemsPerPage = 15;
 
   $: paginatedlist =
     selectedStatus === "ALL" && searchSubject === "ALL"
@@ -227,7 +227,9 @@
               >
             </div>
             <div class="flex flex-wrap w-full p-3 justify-center">
-              <div class="w-full overflow-auto bg-gray-800 p-3 rounded-lg">
+              <div
+                class="w-full overflow-auto bg-gray-800 p-3 rounded-lg max-h-[calc(100vh-280px)]"
+              >
                 <table
                   class="w-full text-md bg-gray-800 text-nowrap text-white shadow-md rounded mb-4"
                 >
