@@ -36,7 +36,6 @@
         reader.onload = (e) => {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: "array" });
-
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
@@ -67,7 +66,7 @@
                     host: "Host",
                     usrdesc: $t.user.usrdesc,
                     admin: false,
-                    apps: "",
+                    apps: "%",
                     regdt: "",
                     flag: "new",
                     password: "",
@@ -78,7 +77,6 @@
                     ...Object.keys(obj),
                     ...Object.keys(cols),
                 ]);
-
                 // 각 키별로 병합
                 keys.forEach((key) => {
                     // obj[key]가 빈 문자열(엑셀에 헤더는 있지만 값이 없는 경우)이라도 그대로 사용되어야 함
@@ -188,7 +186,7 @@
                 host: "Host",
                 usrdesc: $t.user.usrdesc,
                 admin: false,
-                apps: "",
+                apps: "%",
                 regdt: "",
                 flag: "new",
                 password: "",
