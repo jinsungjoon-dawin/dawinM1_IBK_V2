@@ -12,7 +12,6 @@
 
   let mid;
   let mid1;
-  let midnm1;
   let sts;
   let sts1;
   let wsts;
@@ -21,13 +20,14 @@
   //let scenarioselect;
   let selected = true;
 
-  //         "mid": 3,
   //         "midnm": "3차 본이행",
   //         "mgb": 1,
   //         "mgbnm": "이행리허설",
   //         "startdt": "2025-02-20",
   //         "enddt": "2025-02-20",
   //         "scenario": 110
+
+  let latestMid = 0;
 
   async function getData() {
     let service = "/transformboard";
@@ -56,7 +56,6 @@
   ) {
     selected = false;
     mid1 = mid; //mid 5
-    midnm1 = selectedValues.midnm;
     wsts1 = scenarioAll; //99
     scgrp = scgrp;
     sts1 = sts; //5 전체 보기시 구분값값
@@ -66,7 +65,7 @@
     // alert(scenarioAll)
     // alert(sts)
     // if (sts  != 5) {
-    //   let transformboardlist="/transformscenario/transsc_list?mid="+mid+"&wstat="+scenarioAll+"&scgrp="+scgrp
+    //   let transformboardlist="/transformscenario/transsc_list?mid="+mid+"&wstat="+scenarioAll
     //   const transformboardScenario = await fetch($rooturl+transformboardlist);
     //   if (transformboardScenario.ok){
     //     getscenariodetaildata= await transformboardScenario.json();
@@ -80,7 +79,7 @@
 
     // }else{
     //   //alert("5 입니다");
-    //     let transformboardlist="/transformscenario/transsc_list?mid="+mid+"&wstat="+scenarioAll+"&scgrp="+scgrp
+    //     let transformboardlist="/transformscenario/transsc_list?mid="+mid+"&wstat="+scenarioAll
     //     const transformboardScenario = await fetch($rooturl+transformboardlist);
     //     console.log("transformboardScenario==5"+transformboardScenario);
 
@@ -148,6 +147,9 @@
   clearInterval(currentTime);
   onMount(async () => {
     rdata = await getData();
+    if (rdata && rdata.length > 0) {
+      latestMid = rdata[0].mid;
+    }
     selectedValues = rdata[0];
 
     //시나리오 상세 조회
@@ -189,6 +191,9 @@
     selectedValues.mid = mid;
     if (index == 0) {
       rdata = await getData();
+      if (rdata && rdata.length > 0) {
+        latestMid = rdata[0].mid;
+      }
       selectedValues = rdata[0];
     }
     //왼쪽 차수별 이행 상황판 클릭한 값으로 조회 후 차트 조회
@@ -394,7 +399,8 @@
     wsts={wsts1}
     sts={sts1}
     {scgrp}
-    midnm={midnm1}
+    isPast={mid1 != latestMid}
+    midnm={selectedValues.midnm}
   ></TransformBoardDetail>
 {/if}
 

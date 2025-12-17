@@ -12,6 +12,7 @@
   export let sts;
   export let scgrp = String;
   export let midnm = "";
+  export let isPast = false;
   let selectAll = false; // 전체 체크박스 상태
   let selected = true;
   let childMessage = "";
@@ -391,10 +392,13 @@
                   {/each}
                 </select>
                 <button
-                  class="bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded"
+                  class="{isPast || wsts == 2
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-500 hover:bg-blue-700'} text-white py-2 px-4 rounded"
                   on:click={() => {
-                    onSave();
+                    if (!isPast && wsts != 2) onSave();
                   }}
+                  disabled={isPast || wsts == 2}
                 >
                   저장
                 </button>
@@ -425,7 +429,7 @@
 
           <div class="flex flex-wrap w-full p-3 justify-center">
             <div
-              class="w-full overflow-auto bg-gray-800 p-3 rounded-lg max-h-[calc(100vh-280px)]"
+              class="w-full overflow-auto bg-gray-800 p-3 rounded-lg max-h-[710px]"
             >
               <table
                 class="w-full text-md bg-gray-800 text-white text-nowrap shadow-md rounded mb-4"
@@ -483,6 +487,7 @@
                         type="checkbox"
                         bind:checked={selectAll}
                         on:change={toggleAll}
+                        disabled={wsts == 2 || isPast}
                       /></th
                     >
                     <th
@@ -551,6 +556,9 @@
                             <input
                               type="checkbox"
                               bind:checked={item.checked}
+                              disabled={(item.original_wstat == 2 &&
+                                item.actendt) ||
+                                isPast}
                             />
                           </td>
                           <td
@@ -672,6 +680,9 @@
                               type="datetime-local"
                               bind:value={item.actstdt}
                               class="bg-transparent"
+                              disabled={(item.original_wstat == 2 &&
+                                item.actendt) ||
+                                isPast}
                             />
                             <!-- <input type="text" bind:value={item.actstdt}  class="bg-transparent"/> -->
                           </td>
@@ -691,6 +702,9 @@
                               type="datetime-local"
                               bind:value={item.actendt}
                               class="bg-transparent"
+                              disabled={(item.original_wstat == 2 &&
+                                item.actendt) ||
+                                isPast}
                             />
                           </td>
                           <td class="p-3 px-5 border border-white">
@@ -732,6 +746,9 @@
                               class="bg-gray-800 text-white border border-gray-600 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 ml-10"
                               bind:value={item.wstat}
                               on:change={handleChange}
+                              disabled={(item.original_wstat == 2 &&
+                                item.actendt) ||
+                                isPast}
                             >
                               {#each selectedStatus as item}
                                 <option value={item.value}>{item.label}</option>
