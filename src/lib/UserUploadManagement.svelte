@@ -43,10 +43,22 @@
 
             const headers = jsonData[0];
             const rows = jsonData.slice(1).map((row) => {
-                let obj = {};
-                headers.forEach((key, i) => {
+                const headerMapping = {
+                    사용자ID: "usrid",
+                    Host: "host",
+                    설명: "usrdesc",
+                    관리자: "admin",
+                    "Access Apps": "apps",
+                    등록일: "regdt",
+                };
+
+                // 헤더 매핑 적용
+                var obj = {};
+                headers.forEach((header, i) => {
+                    const key = headerMapping[header] || header; // 매핑된 키가 없으면 원래 헤더 사용
                     obj[key] = row[i] || "";
                 });
+
                 const merged = {};
                 const cols = {
                     checked: true,
@@ -60,19 +72,31 @@
                     flag: "new",
                     password: "",
                 };
+
                 // 모든 키 가져오기
                 const keys = new Set([
                     ...Object.keys(obj),
                     ...Object.keys(cols),
                 ]);
+
                 // 각 키별로 병합
                 keys.forEach((key) => {
-                    merged[key] = obj[key] || cols[key];
-                    if (key == "admin")
+                    // obj[key]가 빈 문자열(엑셀에 헤더는 있지만 값이 없는 경우)이라도 그대로 사용되어야 함
+                    // 단, 초기값(cols)이 필요한지 여부는 로직에 따라 다름. 여기서는 obj에 값이 있으면(빈문자열 포함) obj값 우선
+                    if (obj.hasOwnProperty(key)) {
+                        merged[key] = obj[key];
+                    } else {
+                        merged[key] = cols[key];
+                    }
+
+                    if (key == "admin") {
+                        // 엑셀에서 "Y"/"N" 또는 boolean으로 들어올 수 있음, 혹은 내부 로직에 맞춰 변환
+                        const val = merged[key];
                         merged[key] =
-                            merged[key] == "0" || merged[key] == 0
-                                ? false
-                                : true;
+                            val === "Y" || val === true || val === "true"
+                                ? true
+                                : false;
+                    }
                 });
                 return merged;
             });
