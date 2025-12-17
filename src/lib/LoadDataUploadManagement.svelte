@@ -7,7 +7,7 @@
     let fileInput; // 파일 input 요소 참조
     let searchtxt = "";
     let currentPage = 1;
-    let itemsPerPage = 10;
+    let itemsPerPage = 15;
     let list = [];
 
     // 테이블 헤더 정의
@@ -384,7 +384,9 @@
                 </h1>
             </div>
 
-            <div class="w-full overflow-auto bg-gray-700 p-3 rounded-lg">
+            <div
+                class="w-full overflow-auto bg-gray-700 p-3 rounded-lg max-h-[calc(100vh-310px)]"
+            >
                 <div class="w-full">
                     <div
                         class="w-full overflow-auto bg-gray-200 p-3 mb-3 rounded-lg"
