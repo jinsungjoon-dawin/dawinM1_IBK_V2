@@ -4,7 +4,7 @@ const tuser = {
     /**
      * 사용자 관리 전체 리스트
      */
-    ttuserlist : async (args) => {
+    ttuserlist: async (args) => {
         let rows = await mondb.query(`   select ''			as flag     -- flag
                                               , ''	    	as checked  -- checked
                                               , pkey		as pkey		-- pkey
@@ -18,13 +18,13 @@ const tuser = {
                                               , lcnt		as lcnt		-- 로그인실패횟수 (5회 초과시 잠금)
                                               , regdt		as regdt	-- 등록일
                                             from tuser
-                                    `) ;
-        return(rows) ;
-      },    
+                                    `);
+        return (rows);
+    },
     /**
      * 사용자 관리 검색
      */
-    ttusersearch : async (args) => {
+    ttusersearch: async (args) => {
         // console.log("args.gubun : " + args.gubun);      
         // console.log("args.searchtxt : " + args.searchtxt);      
 
@@ -34,11 +34,11 @@ const tuser = {
 
         gubun = args.gubun;
         searchtxt = args.searchtxt;
-        
+
         // console.log('gubun : ' + gubun); 		
         // console.log('searchtxt : ' + searchtxt); 		
 
-        if (gubun == 1){
+        if (gubun == 1) {
             rows = await mondb.query(` select ''			as flag     -- flag
                                             , ''    		as checked  -- checked
                                             , pkey			as pkey		-- pkey
@@ -53,8 +53,8 @@ const tuser = {
                                             , regdt		    as regdt	-- 등록일
                                         from tuser
                                         where usrid like concat(concat('%',?),'%')
-                                    `, [searchtxt] ) ;
-        } else if (gubun == 2){
+                                    `, [searchtxt]);
+        } else if (gubun == 2) {
             rows = await mondb.query(` select ''			as flag     -- flag
                                             , ''	    	as checked  -- checked
                                             , pkey			as pkey		-- pkey
@@ -69,8 +69,8 @@ const tuser = {
                                             , regdt		    as regdt	-- 등록일
                                         from tuser
                                         where Host like concat(concat('%',?),'%')
-                                    `, [searchtxt] ) ;
-        } else if (gubun == 3){
+                                    `, [searchtxt]);
+        } else if (gubun == 3) {
             rows = await mondb.query(` select ''			as flag     -- flag
                                             , ''	    	as checked  -- checked
                                             , pkey			as pkey		-- pkey
@@ -85,8 +85,8 @@ const tuser = {
                                             , regdt		    as regdt	-- 등록일
                                         from tuser
                                         where usrdesc like concat(concat('%',?),'%')
-                                    `, [searchtxt] ) ;
-        } else if (gubun == 4){
+                                    `, [searchtxt]);
+        } else if (gubun == 4) {
             rows = await mondb.query(` select ''			as flag     -- flag
                                             , ''    		as checked  -- checked
                                             , pkey			as pkey		-- pkey
@@ -101,8 +101,8 @@ const tuser = {
                                             , regdt		    as regdt	-- 등록일
                                         from tuser
                                         where admin like concat(concat('%',?),'%')
-                                    `, [searchtxt] ) ;
-        } else if (gubun == 5){
+                                    `, [searchtxt]);
+        } else if (gubun == 5) {
             rows = await mondb.query(` select ''			as flag     -- flag
                                             , ''	    	as checked  -- checked
                                             , pkey			as pkey		-- pkey
@@ -117,7 +117,7 @@ const tuser = {
                                             , regdt		    as regdt	-- 등록일
                                         from tuser
                                         where apps like concat(concat('%',?),'%') 
-                                    `, [searchtxt] ) ;
+                                    `, [searchtxt]);
         } else {
             rows = await mondb.query(` select ''			as flag     -- flag
                                             , ''	    	as checked  -- checked
@@ -133,16 +133,16 @@ const tuser = {
                                             , regdt		    as regdt	-- 등록일
                                         from tuser
                                         where usrid like concat(concat('%',?),'%')
-                                    `, [searchtxt] ) ;
+                                    `, [searchtxt]);
         }
-        return(rows) ;
-      },   
+        return (rows);
+    },
     /**
      * 사용자 관리 삭제
      * 
      */
-    ttuserdel : async (args) => {
-        var contact  = JSON.parse(args);
+    ttuserdel: async (args) => {
+        var contact = JSON.parse(args);
 
         let msg = { message: 'post :' };
         let qstr = '';
@@ -151,36 +151,36 @@ const tuser = {
         try {
             let pkey = 0;
 
-            for (var i = 0; i < contact.length; i++) { 	
+            for (var i = 0; i < contact.length; i++) {
                 // console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
                 // console.log(contact[i]); 		
                 // console.log(contact[k].mid); 		
-                    
+
                 pkey = contact[i].pkey;
                 // console.log('pkey : ' + pkey); 		
 
-                qstr = `delete from tuser where pkey = ?` ;
+                qstr = `delete from tuser where pkey = ?`;
 
                 r = mondb.query(qstr, [pkey]);
-            } 
+            }
         } catch (e) {
             console.log(e.message);
-            return(0) ;
-        } 
+            return (0);
+        }
 
-        return(1) ;
-    },       
+        return (1);
+    },
     /**
      * 사용자 관리 저장
      * 
      */
-    ttusersave : async (args) => {
-        var contact  = JSON.parse(args);
+    ttusersave: async (args) => {
+        var contact = JSON.parse(args);
 
         let msg = { message: 'post :' };
         let qstr = '';
         let r = 0;
-        
+
         let pkey = '';
         let host = '';
         let usrid = '';
@@ -197,19 +197,19 @@ const tuser = {
             // console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
             // console.log('contact.length :' + contact.length);
 
-            for (var i = 0; i < contact.length; i++) { 	
+            for (var i = 0; i < contact.length; i++) {
                 // console.log(contact[i]); 		
-                    
+
                 pkey = contact[i].pkey;
                 host = contact[i].host;
                 usrid = contact[i].usrid;
                 usrdesc = contact[i].usrdesc;
                 pass1 = contact[i].pass1;
                 admin = contact[i].admin;
-                apps = contact[i].app;
+                apps = contact[i].apps;
                 lastin = contact[i].lastin;
                 lcnt = contact[i].lcnt;
-                
+
                 // console.log('pkey: ' + pkey); 		
                 // console.log('host: ' + host); 		
                 // console.log('usrid : ' + usrid); 		
@@ -219,13 +219,13 @@ const tuser = {
                 // console.log('apps : ' + apps); 		
                 // console.log('lastin : ' + lastin); 		
                 // console.log('lcnt : ' + lcnt); 		
-                
-                if (pkey === 0){
+
+                if (pkey === 0) {
                     qstr = ` insert into tuser(host,usrid,usrdesc,pass1,admin,apps,lcnt,regdt) 
                     value (nvl(?,'%'),nvl(?,'default'),nvl(?,'default'),password(nvl(?,?)),nvl(?,0),nvl(?,'default'),nvl(?,0),sysdate())
                    ` ;
 
-                   r = mondb.query(qstr, [host,usrid,usrdesc,pass1,usrid,admin,apps,lcnt]);
+                    r = mondb.query(qstr, [host, usrid, usrdesc, pass1, usrid, admin, apps, lcnt]);
                 } else {
                     qstr = ` update tuser
                     set   host = nvl(?,'%')
@@ -239,19 +239,19 @@ const tuser = {
                     where pkey = ?
                 ` ;
 
-                    r = mondb.query(qstr, [host,usrid,usrdesc,pass1,usrid,admin,apps,lcnt,pkey]);
+                    r = mondb.query(qstr, [host, usrid, usrdesc, pass1, usrid, admin, apps, lcnt, pkey]);
                 }
 
-            } 
+            }
             // console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 
         } catch (e) {
             console.log(e.message);
-            return(0) ;
-        } 
+            return (0);
+        }
 
-        return(1) ;
-    },         
+        return (1);
+    },
 }
- 
-export default tuser ;
+
+export default tuser;

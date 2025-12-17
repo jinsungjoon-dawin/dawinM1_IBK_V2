@@ -197,6 +197,7 @@
 
     function checkData() {
         const saveList = list.filter((item, idx) => item.checked);
+        console.log(saveList);
         if (saveList.length == 0) {
             alert($t.user.checkData);
             return false;
